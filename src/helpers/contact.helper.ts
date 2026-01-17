@@ -1,0 +1,83 @@
+/**
+ * Detect contact type from contact string
+ */
+export function detectContactType(contact: string): 'email' | 'phone' | 'mobile' | 'unknown' {
+  const trimmedContact = contact.trim().toLowerCase();
+
+  // Email pattern
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (emailPattern.test(trimmedContact)) {
+    return 'email';
+  }
+
+  // Phone pattern (digits only, 10-15 digits)
+  const phonePattern = /^\+?[1-9]\d{9,14}$/;
+  const digitsOnly = trimmedContact.replace(/[\s\-()]/g, '');
+  if (phonePattern.test(digitsOnly)) {
+    // Check if it's mobile (starts with mobile indicators)
+    const mobileIndicators = ['+1', '1', '91', '+91', '44', '+44'];
+    const startsWithMobile = mobileIndicators.some((indicator) =>
+      digitsOnly.startsWith(indicator)
+    );
+    return startsWithMobile ? 'mobile' : 'phone';
+  }
+
+  return 'unknown';
+}
+
+/**
+ * Format contact based on type
+ */
+export function formatContact(contact: string, type: string): string {
+  const trimmedContact = contact.trim().toLowerCase();
+
+  if (type === 'email') {
+    return trimmedContact;
+  }
+
+  if (type === 'phone' || type === 'mobile') {
+    // Remove all non-digit characters except +
+    const digitsOnly = trimmedContact.replace(/[^\d+]/g, '');
+    return digitsOnly;
+  }
+
+  return trimmedContact;
+}
+
+/**
+ * Validate contact format based on type
+ */
+export function validateContactFormat(contact: string, type: string): {
+  isValid: boolean;
+  error?: string;
+} {
+  const trimmedContact = contact.trim();
+
+  if (type === 'email') {
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(trimmedContact)) {
+      return {
+        isValid: false,
+        error: 'Invalid email format',
+      };
+    }
+    return { isValid: true };
+  }
+
+  if (type === 'phone' || type === 'mobile') {
+    const digitsOnly = trimmedContact.replace(/[^\d+]/g, '');
+    const phonePattern = /^\+?[1-9]\d{9,14}$/;
+    if (!phonePattern.test(digitsOnly)) {
+      return {
+        isValid: false,
+        error: 'Invalid phone number format. Must be 10-15 digits.',
+      };
+    }
+    return { isValid: true };
+  }
+
+  return {
+    isValid: false,
+    error: `Unknown contact type: ${type}`,
+  };
+}
