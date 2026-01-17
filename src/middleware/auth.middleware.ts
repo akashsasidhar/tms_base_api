@@ -25,7 +25,6 @@ export async function authenticate(
   try {
     // Get token from cookie or Authorization header
     let token: string | undefined;
-
     // Check cookie first
     if (req.cookies && req.cookies['accessToken']) {
       token = req.cookies['accessToken'];

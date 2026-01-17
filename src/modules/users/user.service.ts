@@ -118,6 +118,26 @@ export class UserService {
     };
   }
 
+  private static async generateUniqueUsername(base: string, transaction: any): Promise<string> {
+  const username = base.toLowerCase().replace(/[^a-z0-9_.]/g, '');
+  let suffix = 0;
+
+  for (;;) {
+    const finalUsername = suffix === 0 ? username : `${username}${suffix}`;
+
+    const exists = await User.findOne({
+      where: { username: finalUsername, deleted_at: null },
+      transaction,
+    });
+
+    if (!exists) return finalUsername;
+
+    suffix++;
+  }
+}
+
+
+  
   /**
    * Get user by ID
    */
@@ -173,76 +193,56 @@ export class UserService {
     createdBy?: string
   ): Promise<UserResponseDto> {
     const transaction = await sequelize.transaction();
-
+  
     try {
-      // Check if username already exists
-      const existingUser = await User.findOne({
-        where: { username: userData.username, deleted_at: null },
-        transaction,
-      });
-
-      if (existingUser) {
-        await transaction.rollback();
-        throw new Error('Username already exists');
-      }
-
-      // Use provided password or default password from config
+      // 1️⃣ Generate unique username from first_name + last_name
+      const baseUsername = [userData.first_name, userData.last_name].filter(Boolean).join('.');
+      const finalUsername = await this.generateUniqueUsername(baseUsername, transaction);
+  
+      // 2️⃣ Determine password to use
       const passwordToUse = userData.password || appConfig.ADMIN_DEFAULT_PASSWORD;
-      
-      // Hash password
       const passwordHash = await hashPassword(passwordToUse);
-
-      // Find email contact for sending verification email
-      let userEmail: string | null = null;
-      const emailContactType = await ContactType.findOne({
-        where: { contact_type: 'email', deleted_at: null },
-        transaction,
-      });
-
-      // Create user (not verified initially)
+  
+      // 3️⃣ Create user
       const user = await User.create(
         {
-          username: userData.username,
+          username: finalUsername,
           password_hash: passwordHash,
           first_name: userData.first_name || null,
           last_name: userData.last_name || null,
-          is_verified: false, // User needs to set password first
+          is_verified: false, // user will verify via email
           created_by: createdBy || null,
         },
         { transaction }
       );
-
-      // Create contacts
+  
+      // 4️⃣ Create user contacts
+      let userEmail: string | null = null;
+  
       for (const contactData of userData.contacts) {
-        // Verify contact type exists
-        const contactType = await ContactType.findByPk(contactData.contact_type_id, {
-          transaction,
-        });
-
+        const contactType = await ContactType.findByPk(contactData.contact_type_id, { transaction });
+  
         if (!contactType) {
-          await transaction.rollback();
           throw new Error(`Contact type not found: ${contactData.contact_type_id}`);
         }
-
+  
         const formattedContact = formatContact(contactData.contact, contactType.contact_type);
         const validation = validateContactFormat(formattedContact, contactType.contact_type);
-
+  
         if (!validation.isValid) {
-          await transaction.rollback();
           throw new Error(validation.error || 'Invalid contact format');
         }
-
-        // Check if contact already exists
+  
+        // Check if contact already exists globally
         const existingContact = await UserContact.findOne({
           where: { contact: formattedContact, deleted_at: null },
           transaction,
         });
-
+  
         if (existingContact) {
-          await transaction.rollback();
           throw new Error(`Contact already exists: ${formattedContact}`);
         }
-
+  
         await UserContact.create(
           {
             user_id: user.id,
@@ -252,14 +252,14 @@ export class UserService {
           },
           { transaction }
         );
-
-        // Store email for sending verification email
+  
+        // Save first email contact for sending setup email
         if (contactType.contact_type === 'email' && !userEmail) {
           userEmail = formattedContact;
         }
       }
-
-      // Create password history entry
+  
+      // 5️⃣ Create password history entry
       await UserPassword.create(
         {
           user_id: user.id,
@@ -268,96 +268,69 @@ export class UserService {
         },
         { transaction }
       );
-
-      // Assign role (users can only have one role)
-      // Take only the first role if multiple are provided
+  
+      // 6️⃣ Assign role
+      let roleIdToAssign: string | undefined;
+  
       if (userData.role_ids && userData.role_ids.length > 0) {
-        const firstRoleId = userData.role_ids[0];
-        if (!firstRoleId || typeof firstRoleId !== 'string') {
-          await transaction.rollback();
-          throw new Error('Invalid role ID provided');
-        }
-        
-        const role = await Role.findByPk(firstRoleId, { transaction });
-        if (!role) {
-          await transaction.rollback();
-          throw new Error(`Role not found: ${firstRoleId}`);
-        }
-
+        roleIdToAssign = userData.role_ids[0]; // only the first role
+      } else {
+        // Assign default 'User' role
+        const defaultRole = await Role.findOne({
+          where: { name: 'User', deleted_at: null },
+          transaction,
+        });
+        roleIdToAssign = defaultRole?.id;
+      }
+  
+      if (roleIdToAssign) {
         await UserRole.create(
           {
             user_id: user.id,
-            role_id: firstRoleId,
+            role_id: roleIdToAssign,
             created_by: createdBy || null,
           },
           { transaction }
         );
-      } else {
-        // Assign default'User' role if no role specified
-        const defaultRole = await Role.findOne({
-          where: { name:'User', deleted_at: null },
-          transaction,
-        });
-
-        if (defaultRole) {
-          await UserRole.create(
-            {
-              user_id: user.id,
-              role_id: defaultRole.id,
-              created_by: createdBy || null,
-            },
-            { transaction }
-          );
-        }
       }
-
-      // Generate verification token and send email if email contact exists
-      if (userEmail && emailContactType) {
-        const setupToken = crypto.randomBytes(32).toString('hex');
-        const tokenHash = crypto.createHash('sha256').update(setupToken).digest('hex');
-        const expiresAt = new Date();
-        expiresAt.setHours(expiresAt.getHours() + 24); // 24 hours expiry
-
-        await UserVerificationToken.create(
-          {
+  
+      // 7️⃣ Commit transaction before sending emails
+      await transaction.commit();
+  
+      // 8️⃣ Send setup password email (if email exists)
+      if (userEmail) {
+        try {
+          const setupToken = crypto.randomBytes(32).toString('hex');
+          const tokenHash = crypto.createHash('sha256').update(setupToken).digest('hex');
+          const expiresAt = new Date();
+          expiresAt.setHours(expiresAt.getHours() + 24); // 24-hour expiry
+  
+          // Save verification token
+          await UserVerificationToken.create({
             user_id: user.id,
             token_hash: tokenHash,
             expires_at: expiresAt,
             created_by: createdBy || null,
-          },
-          { transaction }
-        );
-
-        // Send setup password email (outside transaction to avoid rollback on email failure)
-        const userName = user.first_name && user.last_name 
-          ? `${user.first_name} ${user.last_name}` 
-          : user.username;
-
-        // Commit transaction first
-        await transaction.commit();
-
-        try {
+          });
+  
+          const userName = user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.username;
           await emailService.sendSetupPasswordEmail(userEmail, setupToken, user.id, userName);
         } catch (emailError) {
-          // Log error but don't fail user creation
           console.error('Failed to send setup password email:', emailError);
         }
-      } else {
-        await transaction.commit();
       }
-
-      // Fetch user with relations
-      const userWithRelations = await this.getUserById(user.id);
-      if (!userWithRelations) {
-        throw new Error('Failed to retrieve created user');
-      }
-
-      return userWithRelations;
+  
+      // 9️⃣ Fetch user with relations and return
+      const createdUser = await this.getUserById(user.id);
+      if (!createdUser) throw new Error('Failed to retrieve created user');
+  
+      return createdUser;
     } catch (error) {
       await transaction.rollback();
       throw error;
     }
   }
+  
 
   /**
    * Update user

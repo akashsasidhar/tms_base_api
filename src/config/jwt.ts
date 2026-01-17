@@ -9,14 +9,12 @@ export const jwtConfig = {
     httpOnly: true,
     secure: appConfig.NODE_ENV === 'production',
     sameSite: 'strict' as const,
-    maxAge: parseInt(appConfig.REFRESH_COOKIE_MAX_AGE, 10),
     path: '/',
   },
   accessTokenCookieOptions: {
     httpOnly: true,
     secure: appConfig.NODE_ENV === 'production',
     sameSite: 'strict' as const,
-    maxAge: parseInt(appConfig.ACCESS_COOKIE_MAX_AGE, 10),
     path: '/',
   },
 };
