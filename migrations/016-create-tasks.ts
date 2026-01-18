@@ -22,6 +22,10 @@ export const up = async (queryInterface: QueryInterface): Promise<void> => {
       type: DataTypes.STRING(255),
       allowNull: false,
     },
+    task_type: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+    },
     description: {
       type: DataTypes.TEXT,
       allowNull: true,
@@ -45,6 +49,10 @@ export const up = async (queryInterface: QueryInterface): Promise<void> => {
       },
       onUpdate: 'CASCADE',
       onDelete: 'RESTRICT',
+    },
+    started_date: {
+      type: DataTypes.DATE,
+      allowNull: true,
     },
     due_date: {
       type: DataTypes.DATE,

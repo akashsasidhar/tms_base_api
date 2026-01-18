@@ -41,6 +41,14 @@ router.use('/api/permissions', permissionRoutes);
 import dashboardRoutes from './modules/dashboard/dashboard.routes';
 router.use('/api/dashboard', dashboardRoutes);
 
+// Project routes
+import projectRoutes from './modules/projects/project.routes';
+router.use('/api/projects', projectRoutes);
+
+// Task routes
+import taskRoutes from './modules/tasks/task.routes';
+router.use('/api/tasks', taskRoutes);
+
 // API info endpoint
 router.get('/api', (_req, res) => {
   success(res, {
@@ -54,6 +62,8 @@ router.get('/api', (_req, res) => {
       permissions: '/api/permissions',
       contactTypes: '/api/contact-types',
       dashboard: '/api/dashboard',
+      projects: '/api/projects',
+      tasks: '/api/tasks',
     },
   }, 'API information');
 });

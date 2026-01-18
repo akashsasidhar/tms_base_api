@@ -52,6 +52,20 @@ export const PERMISSIONS = {
     CHANGE_PASSWORD: 'auth:change_password',
     VERIFY_CONTACT: 'auth:verify_contact',
   },
+  PROJECTS: {
+    CREATE: 'projects:create',
+    READ: 'projects:read',
+    UPDATE: 'projects:update',
+    DELETE: 'projects:delete',
+    MANAGE: 'projects:manage', // Full access to projects
+  },
+  TASKS: {
+    CREATE: 'tasks:create',
+    READ: 'tasks:read',
+    UPDATE: 'tasks:update',
+    DELETE: 'tasks:delete',
+    MANAGE: 'tasks:manage', // Full access to tasks
+  },
 } as const;
 
 /**

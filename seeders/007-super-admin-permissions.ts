@@ -18,18 +18,31 @@ export const up = async (queryInterface: QueryInterface): Promise<void> => {
     'SELECT id FROM permissions WHERE is_active = true'
   );
 
-  // Assign all permissions to Super Admin role
-  const rolePermissions = permissions.map((permission) => ({
-    id: uuidv4(),
-    role_id: superAdminRoleId,
-    permission_id: (permission as { id: string }).id,
-    is_active: true,
-    created_at: new Date(),
-    updated_at: new Date(),
-  }));
+  // Check existing role permissions to avoid duplicates
+  const [existingRolePermissions] = await queryInterface.sequelize.query(`
+    SELECT permission_id FROM role_permissions 
+    WHERE role_id = '${superAdminRoleId}' 
+    AND deleted_at IS NULL
+  `);
+  
+  const existingPermissionIds = new Set(
+    existingRolePermissions.map((rp: any) => rp.permission_id)
+  );
 
-  if (rolePermissions.length > 0) {
-    await queryInterface.bulkInsert('role_permissions', rolePermissions, {});
+  // Filter out permissions that already exist
+  const newRolePermissions = permissions
+    .filter((permission: any) => !existingPermissionIds.has(permission.id))
+    .map((permission: any) => ({
+      id: uuidv4(),
+      role_id: superAdminRoleId,
+      permission_id: permission.id,
+      is_active: true,
+      created_at: new Date(),
+      updated_at: new Date(),
+    }));
+
+  if (newRolePermissions.length > 0) {
+    await queryInterface.bulkInsert('role_permissions', newRolePermissions, {});
   }
 };
 

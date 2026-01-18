@@ -2,28 +2,31 @@ import { QueryInterface } from 'sequelize';
 import { v4 as uuidv4 } from 'uuid';
 
 export const up = async (queryInterface: QueryInterface): Promise<void> => {
-  // Get user role ID
-  const [userRoles] = await queryInterface.sequelize.query(
-    "SELECT id FROM roles WHERE name = 'User' LIMIT 1"
+  // Get Project Manager role ID
+  const [projectManagerRoles] = await queryInterface.sequelize.query(
+    "SELECT id FROM roles WHERE name = 'Project Manager' LIMIT 1"
   );
 
-  if (userRoles.length === 0) {
-    throw new Error('User role not found. Run seeders in order.');
+  if (projectManagerRoles.length === 0) {
+    throw new Error('Project Manager role not found. Run seeders in order.');
   }
 
-  const userRoleId = (userRoles[0] as { id: string }).id;
+  const projectManagerRoleId = (projectManagerRoles[0] as { id: string }).id;
 
-  // Get read permissions for user role (including projects:read)
+  // Get permissions for Project Manager role
   const [permissions] = await queryInterface.sequelize.query(`
     SELECT id FROM permissions 
     WHERE is_active = true 
-    AND action = 'read'
+    AND (
+      (resource = 'projects' AND action IN ('create', 'read', 'update'))
+      OR (resource = 'tasks' AND action IN ('create', 'read', 'update', 'delete'))
+    )
   `);
 
   // Check existing role permissions to avoid duplicates
   const [existingRolePermissions] = await queryInterface.sequelize.query(`
     SELECT permission_id FROM role_permissions 
-    WHERE role_id = '${userRoleId}' 
+    WHERE role_id = '${projectManagerRoleId}' 
     AND deleted_at IS NULL
   `);
   
@@ -36,7 +39,7 @@ export const up = async (queryInterface: QueryInterface): Promise<void> => {
     .filter((permission: any) => !existingPermissionIds.has(permission.id))
     .map((permission: any) => ({
       id: uuidv4(),
-      role_id: userRoleId,
+      role_id: projectManagerRoleId,
       permission_id: permission.id,
       is_active: true,
       created_at: new Date(),
@@ -49,15 +52,15 @@ export const up = async (queryInterface: QueryInterface): Promise<void> => {
 };
 
 export const down = async (queryInterface: QueryInterface): Promise<void> => {
-  // Get user role ID
-  const [userRoles] = await queryInterface.sequelize.query(
-    "SELECT id FROM roles WHERE name = 'User' LIMIT 1"
+  // Get Project Manager role ID
+  const [projectManagerRoles] = await queryInterface.sequelize.query(
+    "SELECT id FROM roles WHERE name = 'Project Manager' LIMIT 1"
   );
 
-  if (userRoles.length > 0) {
-    const userRoleId = (userRoles[0] as { id: string }).id;
+  if (projectManagerRoles.length > 0) {
+    const projectManagerRoleId = (projectManagerRoles[0] as { id: string }).id;
     await queryInterface.bulkDelete('role_permissions', {
-      role_id: userRoleId,
+      role_id: projectManagerRoleId,
     }, {});
   }
 };

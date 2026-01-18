@@ -8,30 +8,36 @@ export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
 export interface TaskAttributes extends BaseAttributes {
   project_id: string;
   title: string;
+  task_type: string;
   description: string | null;
   priority: TaskPriority;
   status: TaskStatus;
   created_by: string;
+  started_date: Date | null;
   due_date: Date | null;
 }
 
 export interface TaskCreationAttributes extends BaseCreationAttributes {
   project_id: string;
   title: string;
+  task_type: string;
   description?: string | null;
   priority?: TaskPriority;
   status?: TaskStatus;
   created_by: string;
+  started_date?: Date | null;
   due_date?: Date | null;
 }
 
 export class Task extends BaseModel<TaskAttributes, TaskCreationAttributes> implements TaskAttributes {
   declare project_id: string;
   declare title: string;
+  declare task_type: string;
   declare description: string | null;
   declare priority: TaskPriority;
   declare status: TaskStatus;
   declare created_by: string;
+  declare started_date: Date | null;
   declare due_date: Date | null;
 
   static initialize(sequelize: Sequelize): void {
@@ -53,6 +59,13 @@ export class Task extends BaseModel<TaskAttributes, TaskCreationAttributes> impl
         validate: {
           notEmpty: true,
           len: [1, 255],
+        },
+      },
+      task_type: {
+        type: DataTypes.STRING(255),
+        allowNull: false,
+        validate: {
+          notEmpty: true,
         },
       },
       description: {
@@ -84,6 +97,13 @@ export class Task extends BaseModel<TaskAttributes, TaskCreationAttributes> impl
         },
         onUpdate: 'CASCADE',
         onDelete: 'RESTRICT',
+      },
+      started_date: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        validate: {
+          isDate: true,
+        },
       },
       due_date: {
         type: DataTypes.DATE,

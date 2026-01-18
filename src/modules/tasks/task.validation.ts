@@ -1,0 +1,84 @@
+import { z } from 'zod';
+
+/**
+ * Create task validation schema
+ */
+export const createTaskSchema = z.object({
+  project_id: z.string().uuid('Invalid project ID'),
+  title: z
+    .string()
+    .min(1, 'Task title is required')
+    .max(255, 'Task title must not exceed 255 characters'),
+  task_type: z.string().min(1, 'Task type is required'),
+  description: z.string().max(5000, 'Description must not exceed 5000 characters').optional().nullable(),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional().default('MEDIUM'),
+  status: z.enum(['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE']).optional().default('TODO'),
+  started_date: z.coerce.date().optional().nullable(),
+  due_date: z.coerce.date().optional().nullable(),
+  assignee_ids: z.array(z.string().uuid('Invalid assignee ID')).optional(),
+}).refine(
+  (data) => {
+    // If both dates are provided, due_date should be after started_date
+    if (data.started_date && data.due_date) {
+      return data.due_date >= data.started_date;
+    }
+    return true;
+  },
+  {
+    message: 'Due date must be after start date',
+    path: ['due_date'],
+  }
+);
+
+/**
+ * Update task validation schema
+ */
+export const updateTaskSchema = z.object({
+  project_id: z.string().uuid('Invalid project ID').optional(),
+  title: z
+    .string()
+    .min(1, 'Task title is required')
+    .max(255, 'Task title must not exceed 255 characters')
+    .optional(),
+  task_type: z.string().min(1, 'Task type is required').optional(),
+  description: z.string().max(5000, 'Description must not exceed 5000 characters').optional().nullable(),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
+  status: z.enum(['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE']).optional(),
+  started_date: z.coerce.date().optional().nullable(),
+  due_date: z.coerce.date().optional().nullable(),
+  is_active: z.boolean().optional(),
+  assignee_ids: z.array(z.string().uuid('Invalid assignee ID')).optional(),
+}).refine(
+  (data) => {
+    // If both dates are provided, due_date should be after started_date
+    if (data.started_date && data.due_date) {
+      return data.due_date >= data.started_date;
+    }
+    return true;
+  },
+  {
+    message: 'Due date must be after start date',
+    path: ['due_date'],
+  }
+);
+
+/**
+ * Get tasks query validation schema
+ */
+export const getTasksQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(10).optional(),
+  search: z.string().optional(),
+  project_id: z.string().uuid('Invalid project ID').optional(),
+  title: z.string().optional(),
+  task_type: z.string().optional(),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
+  status: z.enum(['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE']).optional(),
+  created_by: z.string().uuid('Invalid created_by ID').optional(),
+  assigned_to: z.string().uuid('Invalid assigned_to ID').optional(),
+  is_active: z.coerce.boolean().optional(),
+  due_date_from: z.coerce.date().optional(),
+  due_date_to: z.coerce.date().optional(),
+  sort_field: z.enum(['title', 'created_at', 'due_date', 'priority', 'status']).optional(),
+  sort_order: z.enum(['ASC', 'DESC']).default('ASC').optional(),
+});
