@@ -1,17 +1,23 @@
 import { QueryInterface, DataTypes, Sequelize } from 'sequelize';
 
 export const up = async (queryInterface: QueryInterface): Promise<void> => {
-  /** -----------------------------
-   * CREATE TABLE: user_contacts
-   * ----------------------------- */
-  await queryInterface.createTable('user_contacts', {
+  await queryInterface.createTable('task_assignments', {
     id: {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
       allowNull: false,
     },
-
+    task_id: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: 'tasks',
+        key: 'id',
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'CASCADE',
+    },
     user_id: {
       type: DataTypes.UUID,
       allowNull: false,
@@ -22,42 +28,31 @@ export const up = async (queryInterface: QueryInterface): Promise<void> => {
       onUpdate: 'CASCADE',
       onDelete: 'CASCADE',
     },
-
-    contact_type_id: {
+    assigned_by: {
       type: DataTypes.UUID,
       allowNull: false,
       references: {
-        model: 'contact_types',
+        model: 'users',
         key: 'id',
       },
       onUpdate: 'CASCADE',
       onDelete: 'RESTRICT',
     },
-
-    contact: {
-      type: DataTypes.STRING(255),
+    assigned_at: {
+      type: DataTypes.DATE,
       allowNull: false,
-      unique: true,
+      defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
     },
-
-    is_primary: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-      defaultValue: false,
-    },
-
     is_active: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: true,
     },
-
     created_at: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
     },
-
     created_by: {
       type: DataTypes.UUID,
       allowNull: true,
@@ -68,13 +63,11 @@ export const up = async (queryInterface: QueryInterface): Promise<void> => {
       onUpdate: 'CASCADE',
       onDelete: 'SET NULL',
     },
-
     updated_at: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: Sequelize.literal('CURRENT_TIMESTAMP'),
     },
-
     updated_by: {
       type: DataTypes.UUID,
       allowNull: true,
@@ -85,12 +78,10 @@ export const up = async (queryInterface: QueryInterface): Promise<void> => {
       onUpdate: 'CASCADE',
       onDelete: 'SET NULL',
     },
-
     deleted_at: {
       type: DataTypes.DATE,
       allowNull: true,
     },
-
     deleted_by: {
       type: DataTypes.UUID,
       allowNull: true,
@@ -103,44 +94,27 @@ export const up = async (queryInterface: QueryInterface): Promise<void> => {
     },
   });
 
-  /** -----------------------------
-   * INDEXES
-   * ----------------------------- */
-  await queryInterface.addIndex('user_contacts', ['user_id'], {
-    name: 'user_contacts_user_id_idx',
+  // Add indexes
+  await queryInterface.addIndex('task_assignments', ['task_id'], {
+    name: 'task_assignments_task_id_idx',
   });
-
-  await queryInterface.addIndex('user_contacts', ['contact_type_id'], {
-    name: 'user_contacts_contact_type_id_idx',
+  await queryInterface.addIndex('task_assignments', ['user_id'], {
+    name: 'task_assignments_user_id_idx',
   });
-
-  await queryInterface.addIndex('user_contacts', ['contact'], {
-    unique: true,
-    name: 'user_contacts_contact_unique',
+  await queryInterface.addIndex('task_assignments', ['assigned_by'], {
+    name: 'task_assignments_assigned_by_idx',
   });
-
-  await queryInterface.addIndex('user_contacts', ['is_primary'], {
-    name: 'user_contacts_is_primary_idx',
+  await queryInterface.addIndex('task_assignments', ['is_active'], {
+    name: 'task_assignments_is_active_idx',
   });
-
-  /** -----------------------------
-   * ONE-TIME DATA MIGRATION
-   * ----------------------------- */
-  await queryInterface.sequelize.query(`
-    UPDATE user_contacts uc
-    SET is_primary = true
-    FROM contact_types ct
-    WHERE uc.contact_type_id = ct.id
-      AND LOWER(ct.contact_type) IN (
-        'primary email',
-        'primary_email',
-        'primary mobile',
-        'primary_mobile'
-      )
-      AND uc.deleted_at IS NULL;
-  `);
+  
+  // Add unique constraint: a user can only be assigned to a task once (when active)
+  // Note: This will be enforced at application level since we use soft deletes
+  await queryInterface.addIndex('task_assignments', ['task_id', 'user_id'], {
+    name: 'task_assignments_task_user_idx',
+  });
 };
 
 export const down = async (queryInterface: QueryInterface): Promise<void> => {
-  await queryInterface.dropTable('user_contacts');
+  await queryInterface.dropTable('task_assignments');
 };

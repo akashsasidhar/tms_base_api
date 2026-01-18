@@ -10,6 +10,10 @@ import { RolePermission } from './RolePermission.model';
 import { RefreshToken } from './RefreshToken.model';
 import { PasswordResetToken } from './PasswordResetToken.model';
 import { UserVerificationToken } from './UserVerificationToken.model';
+import { Project } from './Project.model';
+import { Task } from './Task.model';
+import { TaskAssignment } from './TaskAssignment.model';
+import { TaskUpdate } from './TaskUpdate.model';
 
 // Initialize all models
 User.initialize(sequelize);
@@ -23,6 +27,10 @@ RolePermission.initialize(sequelize);
 RefreshToken.initialize(sequelize);
 PasswordResetToken.initialize(sequelize);
 UserVerificationToken.initialize(sequelize);
+Project.initialize(sequelize);
+Task.initialize(sequelize);
+TaskAssignment.initialize(sequelize);
+TaskUpdate.initialize(sequelize);
 
 // Define associations
 
@@ -61,6 +69,30 @@ User.hasMany(UserVerificationToken, {
   foreignKey: 'user_id',
   as: 'verificationTokens',
   onDelete: 'CASCADE',
+});
+
+User.hasMany(Project, {
+  foreignKey: 'created_by',
+  as: 'createdProjects',
+  onDelete: 'RESTRICT',
+});
+
+User.hasMany(Task, {
+  foreignKey: 'created_by',
+  as: 'createdTasks',
+  onDelete: 'RESTRICT',
+});
+
+User.hasMany(TaskAssignment, {
+  foreignKey: 'user_id',
+  as: 'taskAssignments',
+  onDelete: 'CASCADE',
+});
+
+User.hasMany(TaskAssignment, {
+  foreignKey: 'assigned_by',
+  as: 'assignedTasks',
+  onDelete: 'RESTRICT',
 });
 
 User.belongsToMany(Role, {
@@ -174,6 +206,74 @@ UserVerificationToken.belongsTo(User, {
   as:'user',
 });
 
+// Project associations
+Project.belongsTo(User, {
+  foreignKey: 'created_by',
+  as: 'creator',
+});
+
+Project.hasMany(Task, {
+  foreignKey: 'project_id',
+  as: 'tasks',
+  onDelete: 'CASCADE',
+});
+
+// Task associations
+Task.belongsTo(Project, {
+  foreignKey: 'project_id',
+  as: 'project',
+});
+
+Task.belongsTo(User, {
+  foreignKey: 'created_by',
+  as: 'creator',
+});
+
+Task.hasMany(TaskAssignment, {
+  foreignKey: 'task_id',
+  as: 'assignments',
+  onDelete: 'CASCADE',
+});
+
+// TaskAssignment associations
+TaskAssignment.belongsTo(Task, {
+  foreignKey: 'task_id',
+  as: 'task',
+});
+
+TaskAssignment.belongsTo(User, {
+  foreignKey: 'user_id',
+  as: 'user',
+});
+
+TaskAssignment.belongsTo(User, {
+  foreignKey: 'assigned_by',
+  as: 'assigner',
+});
+
+// TaskUpdate associations
+Task.hasMany(TaskUpdate, {
+  foreignKey: 'task_id',
+  as: 'updates',
+  onDelete: 'CASCADE',
+});
+
+TaskUpdate.belongsTo(Task, {
+  foreignKey: 'task_id',
+  as: 'task',
+});
+
+TaskUpdate.belongsTo(User, {
+  foreignKey: 'updated_by',
+  as: 'updater',
+});
+
+User.hasMany(TaskUpdate, {
+  foreignKey: 'updated_by',
+  as: 'taskUpdates',
+  onDelete: 'RESTRICT',
+});
+
 // Export models and sequelize instance
 export {
   sequelize,
@@ -188,6 +288,10 @@ export {
   RefreshToken,
   PasswordResetToken,
   UserVerificationToken,
+  Project,
+  Task,
+  TaskAssignment,
+  TaskUpdate,
 };
 
 export default sequelize;

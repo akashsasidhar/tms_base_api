@@ -2,31 +2,14 @@ import { QueryInterface } from 'sequelize';
 import { v4 as uuidv4 } from 'uuid';
 
 export const up = async (queryInterface: QueryInterface): Promise<void> => {
-  const roles = [
-    {
-      id: uuidv4(),
-      name: 'Super Admin',
-      description: 'Super Administrator with full system access',
-      is_active: true,
-      created_at: new Date(),
-      updated_at: new Date(),
-    },
-    {
-      id: uuidv4(),
-      name:'Admin',
-      description: 'Administrator with management access',
-      is_active: true,
-      created_at: new Date(),
-      updated_at: new Date(),
-    },
-    {
-      id: uuidv4(),
-      name:'User',
-      description: 'Regular user with basic read-only access',
-      is_active: true,
-      created_at: new Date(),
-      updated_at: new Date(),
-    },
+  // Check which roles already exist
+  const [existingRoles] = await queryInterface.sequelize.query(
+    "SELECT name FROM roles WHERE name IN ('Project Manager', 'Developer', 'Designer', 'Marketing')"
+  );
+
+  const existingRoleNames = (existingRoles as { name: string }[]).map(r => r.name);
+
+  const rolesToAdd = [
     {
       id: uuidv4(),
       name: 'Project Manager',
@@ -59,13 +42,15 @@ export const up = async (queryInterface: QueryInterface): Promise<void> => {
       created_at: new Date(),
       updated_at: new Date(),
     },
-  ];
+  ].filter(role => !existingRoleNames.includes(role.name));
 
-  await queryInterface.bulkInsert('roles', roles, {});
+  if (rolesToAdd.length > 0) {
+    await queryInterface.bulkInsert('roles', rolesToAdd, {});
+  }
 };
 
 export const down = async (queryInterface: QueryInterface): Promise<void> => {
   await queryInterface.bulkDelete('roles', {
-    name: ['Super Admin','Admin','User','Project Manager','Developer','Designer','Marketing'],
+    name: ['Project Manager', 'Developer', 'Designer', 'Marketing'],
   }, {});
 };
