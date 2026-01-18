@@ -30,12 +30,20 @@ export function detectContactType(contact: string): 'email' | 'phone' | 'mobile'
  */
 export function formatContact(contact: string, type: string): string {
   const trimmedContact = contact.trim().toLowerCase();
+  const normalizedType = type.toLowerCase();
 
-  if (type === 'email') {
+  // Handle primary email and primary_email variations
+  if (normalizedType === 'email' || normalizedType === 'primary email' || normalizedType === 'primary_email') {
     return trimmedContact;
   }
 
-  if (type === 'phone' || type === 'mobile') {
+  // Handle primary mobile, primary_mobile, phone, and mobile variations
+  if (
+    normalizedType === 'phone' ||
+    normalizedType === 'mobile' ||
+    normalizedType === 'primary mobile' ||
+    normalizedType === 'primary_mobile'
+  ) {
     // Remove all non-digit characters except +
     const digitsOnly = trimmedContact.replace(/[^\d+]/g, '');
     return digitsOnly;
@@ -52,8 +60,10 @@ export function validateContactFormat(contact: string, type: string): {
   error?: string;
 } {
   const trimmedContact = contact.trim();
+  const normalizedType = type.toLowerCase();
 
-  if (type === 'email') {
+  // Handle primary email and primary_email variations
+  if (normalizedType === 'email' || normalizedType === 'primary email' || normalizedType === 'primary_email') {
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailPattern.test(trimmedContact)) {
       return {
@@ -64,7 +74,13 @@ export function validateContactFormat(contact: string, type: string): {
     return { isValid: true };
   }
 
-  if (type === 'phone' || type === 'mobile') {
+  // Handle primary mobile, primary_mobile, phone, and mobile variations
+  if (
+    normalizedType === 'phone' ||
+    normalizedType === 'mobile' ||
+    normalizedType === 'primary mobile' ||
+    normalizedType === 'primary_mobile'
+  ) {
     const digitsOnly = trimmedContact.replace(/[^\d+]/g, '');
     const phonePattern = /^\+?[1-9]\d{9,14}$/;
     if (!phonePattern.test(digitsOnly)) {

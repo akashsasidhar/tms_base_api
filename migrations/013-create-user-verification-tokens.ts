@@ -32,6 +32,11 @@ export const up = async (queryInterface: QueryInterface): Promise<void> => {
       allowNull: false,
       defaultValue: false,
     },
+    is_active: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+    },
     created_at: {
       type: DataTypes.DATE,
       allowNull: false,

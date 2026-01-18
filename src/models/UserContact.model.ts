@@ -6,18 +6,21 @@ export interface UserContactAttributes extends BaseAttributes {
   user_id: string;
   contact_type_id: string;
   contact: string;
+  is_primary: boolean;
 }
 
 export interface UserContactCreationAttributes extends BaseCreationAttributes {
   user_id: string;
   contact_type_id: string;
   contact: string;
+  is_primary?: boolean;
 }
 
 export class UserContact extends BaseModel<UserContactAttributes, UserContactCreationAttributes> implements UserContactAttributes {
   declare user_id: string;
   declare contact_type_id: string;
   declare contact: string;
+  declare is_primary: boolean;
 
   static initialize(sequelize: Sequelize): void {
     const attributes: ModelAttributes = {
@@ -49,6 +52,11 @@ export class UserContact extends BaseModel<UserContactAttributes, UserContactCre
         validate: {
           notEmpty: true,
         },
+      },
+      is_primary: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
       },
     };
 

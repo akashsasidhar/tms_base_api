@@ -1,3 +1,4 @@
+import { Op } from 'sequelize';
 import { User, UserContact, UserPassword, Role, UserRole, ContactType, RefreshToken, PasswordResetToken, UserVerificationToken } from '../../models';
 import { hashPassword, comparePassword, validatePasswordStrength } from '../../utils/password.util';
 import {
@@ -185,22 +186,47 @@ export class AuthService {
       // Detect contact type if not provided
       let detectedType = contactType;
       if (!detectedType) {
-        detectedType = detectContactType(contact);
-        if (detectedType === 'unknown') {
+        const detected = detectContactType(contact);
+        if (detected === 'unknown') {
           return {
             success: false,
             message: 'Unable to detect contact type',
             errors: ['Please specify contact type or use a valid email/phone'],
           };
         }
+        // Map detected type to primary contact type
+        // 'email' -> 'primary email', 'mobile' -> 'primary mobile'
+        if (detected === 'email') {
+          detectedType = 'primary email';
+        } else if (detected === 'mobile' || detected === 'phone') {
+          detectedType = 'primary mobile';
+        } else {
+          detectedType = detected;
+        }
+      } else {
+        // If contact type is provided, ensure it's mapped to primary
+        const lowerType = detectedType.toLowerCase();
+        if (lowerType === 'email') {
+          detectedType = 'primary email';
+        } else if (lowerType === 'mobile' || lowerType === 'phone') {
+          detectedType = 'primary mobile';
+        }
       }
 
-      // Format contact
-      const formattedContact = formatContact(contact, detectedType);
+      // Format contact - use base type for formatting (email/mobile)
+      const baseType = detectedType.toLowerCase().includes('email') ? 'email' : 'mobile';
+      const formattedContact = formatContact(contact, baseType);
 
-      // Find contact type
+      // Find contact type - only accept primary email or primary mobile
+      // Try both 'primary email' and 'primary_email' variations
       const contactTypeRecord = await ContactType.findOne({
-        where: { contact_type: detectedType },
+        where: {
+          [Op.or]: [
+            { contact_type: detectedType },
+            { contact_type: detectedType.replace(' ', '_') },
+            { contact_type: detectedType.replace('_', ' ') },
+          ],
+        },
       });
 
       if (!contactTypeRecord) {
@@ -211,11 +237,25 @@ export class AuthService {
         };
       }
 
-      // Find user contact
+      // Check if the contact type is primary email or primary mobile
+      const contactTypeName = contactTypeRecord.contact_type.toLowerCase();
+      const isPrimaryEmail = contactTypeName === 'primary email' || contactTypeName === 'primary_email';
+      const isPrimaryMobile = contactTypeName === 'primary mobile' || contactTypeName === 'primary_mobile';
+
+      if (!isPrimaryEmail && !isPrimaryMobile) {
+        return {
+          success: false,
+          message: 'Invalid login method',
+          errors: ['You must use your primary email or primary mobile number to login'],
+        };
+      }
+
+      // Find user contact - must be primary email or primary mobile
       const userContact = await UserContact.findOne({
         where: {
           contact: formattedContact,
           contact_type_id: contactTypeRecord.id,
+          is_primary: true, // Must be a primary contact
         },
         include: [
           {
@@ -245,7 +285,7 @@ export class AuthService {
         return {
           success: false,
           message: 'Invalid credentials',
-          errors: ['Contact or password is incorrect'],
+          errors: ['Please use your primary email or primary mobile number to login'],
         };
       }
 

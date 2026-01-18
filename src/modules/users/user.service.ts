@@ -47,6 +47,7 @@ function transformUserToDto(user: User): UserResponseDto {
     contact_type: contact.contactType?.contact_type || '',
     contact: contact.contact,
     is_active: contact.is_active,
+    is_primary: contact.is_primary || false,
     created_at: contact.created_at,
     updated_at: contact.updated_at,
   }));
@@ -218,6 +219,8 @@ export class UserService {
   
       // 4️⃣ Create user contacts
       let userEmail: string | null = null;
+      let hasPrimaryEmail = false;
+      let hasPrimaryMobile = false;
   
       for (const contactData of userData.contacts) {
         const contactType = await ContactType.findByPk(contactData.contact_type_id, { transaction });
@@ -242,19 +245,43 @@ export class UserService {
         if (existingContact) {
           throw new Error(`Contact already exists: ${formattedContact}`);
         }
+
+        // Check if this is a primary email or primary mobile contact type
+        const contactTypeName = contactType.contact_type.toLowerCase();
+        const isPrimaryEmail = contactTypeName === 'primary email' || contactTypeName === 'primary_email';
+        const isPrimaryMobile = contactTypeName === 'primary mobile' || contactTypeName === 'primary_mobile';
+
+        // Ensure only one primary email and one primary mobile per user
+        if (isPrimaryEmail) {
+          if (hasPrimaryEmail) {
+            throw new Error('User can only have one primary email contact');
+          }
+          hasPrimaryEmail = true;
+        }
+
+        if (isPrimaryMobile) {
+          if (hasPrimaryMobile) {
+            throw new Error('User can only have one primary mobile contact');
+          }
+          hasPrimaryMobile = true;
+        }
   
+        // Determine if this is a primary contact
+        const isPrimaryContact = isPrimaryEmail || isPrimaryMobile;
+
         await UserContact.create(
           {
             user_id: user.id,
             contact_type_id: contactData.contact_type_id,
             contact: formattedContact,
+            is_primary: isPrimaryContact,
             created_by: createdBy || null,
           },
           { transaction }
         );
   
-        // Save first email contact for sending setup email
-        if (contactType.contact_type === 'email' && !userEmail) {
+        // Save first primary email or email contact for sending setup email
+        if ((isPrimaryEmail || contactType.contact_type.toLowerCase() === 'email') && !userEmail) {
           userEmail = formattedContact;
         }
       }
@@ -559,7 +586,7 @@ export class UserService {
         throw new Error(validation.error || 'Invalid contact format');
       }
 
-      // Check if contact already exists
+      // Check if contact already exists globally
       const existingContact = await UserContact.findOne({
         where: { contact: formattedContact, deleted_at: null },
         transaction,
@@ -570,11 +597,56 @@ export class UserService {
         throw new Error('Contact already exists');
       }
 
+      // Check if this is a primary email or primary mobile contact type
+      const contactTypeName = contactType.contact_type.toLowerCase();
+      const isPrimaryEmail = contactTypeName === 'primary email' || contactTypeName === 'primary_email';
+      const isPrimaryMobile = contactTypeName === 'primary mobile' || contactTypeName === 'primary_mobile';
+
+      // If adding primary email or primary mobile, check if user already has one
+      if (isPrimaryEmail || isPrimaryMobile) {
+        // Find existing primary email/mobile contacts for this user
+        const existingPrimaryContacts = await UserContact.findAll({
+          where: {
+            user_id: userId,
+            deleted_at: null,
+          },
+          include: [
+            {
+              model: ContactType,
+              as: 'contactType',
+              required: true,
+            },
+          ],
+          transaction,
+        });
+
+        // Check if user already has a primary email/mobile of this type
+        const existingPrimary = existingPrimaryContacts.find((c: any) => {
+          const type = c.contactType?.contact_type?.toLowerCase();
+          if (isPrimaryEmail) {
+            return (type === 'primary email' || type === 'primary_email') && c.is_primary;
+          } else if (isPrimaryMobile) {
+            return (type === 'primary mobile' || type === 'primary_mobile') && c.is_primary;
+          }
+          return false;
+        });
+
+        if (existingPrimary) {
+          await transaction.rollback();
+          const typeName = isPrimaryEmail ? 'primary email' : 'primary mobile';
+          throw new Error(`User already has a ${typeName}. Please update the existing ${typeName} instead of adding a new one.`);
+        }
+      }
+
+      // Determine if this is a primary contact
+      const isPrimaryContact = isPrimaryEmail || isPrimaryMobile;
+
       const userContact = await UserContact.create(
         {
           user_id: userId,
           contact_type_id: contactData.contact_type_id,
           contact: formattedContact,
+          is_primary: isPrimaryContact,
           created_by: createdBy || null,
         },
         { transaction }
@@ -604,6 +676,7 @@ export class UserService {
         contact_type: contactWithTypeData.contactType.contact_type,
         contact: contactWithTypeData.contact,
         is_active: contactWithTypeData.is_active,
+        is_primary: contactWithTypeData.is_primary || false,
         created_at: contactWithTypeData.created_at,
         updated_at: contactWithTypeData.updated_at,
       };
@@ -717,6 +790,48 @@ export class UserService {
           throw new Error('Contact already exists');
         }
 
+        // Check if this is a primary email or primary mobile contact type
+        const contactTypeName = contactWithType.contactType.contact_type.toLowerCase();
+        const isPrimaryEmail = contactTypeName === 'primary email' || contactTypeName === 'primary_email';
+        const isPrimaryMobile = contactTypeName === 'primary mobile' || contactTypeName === 'primary_mobile';
+
+        // If updating a primary email/mobile, ensure no duplicates exist
+        if (isPrimaryEmail || isPrimaryMobile) {
+          // Find other primary email/mobile contacts for this user (excluding current one)
+          const otherPrimaryContacts = await UserContact.findAll({
+            where: {
+              user_id: userId,
+              deleted_at: null,
+              id: { [Op.ne]: contactId },
+            },
+            include: [
+              {
+                model: ContactType,
+                as: 'contactType',
+                required: true,
+              },
+            ],
+            transaction,
+          });
+
+          // Check if user has another primary email/mobile of the same type
+          const duplicatePrimary = otherPrimaryContacts.find((c: any) => {
+            const type = c.contactType?.contact_type?.toLowerCase();
+            if (isPrimaryEmail) {
+              return (type === 'primary email' || type === 'primary_email') && c.is_primary;
+            } else if (isPrimaryMobile) {
+              return (type === 'primary mobile' || type === 'primary_mobile') && c.is_primary;
+            }
+            return false;
+          });
+
+          if (duplicatePrimary) {
+            await transaction.rollback();
+            const typeName = isPrimaryEmail ? 'primary email' : 'primary mobile';
+            throw new Error(`User already has another ${typeName}. Only one ${typeName} is allowed per user.`);
+          }
+        }
+
         if (!contact) {
           await transaction.rollback();
           throw new Error('Contact not found');
@@ -755,6 +870,7 @@ export class UserService {
         contact_type: updatedContactData.contactType.contact_type,
         contact: updatedContactData.contact,
         is_active: updatedContactData.is_active,
+        is_primary: updatedContactData.is_primary || false,
         created_at: updatedContactData.created_at,
         updated_at: updatedContactData.updated_at,
       };
@@ -986,6 +1102,7 @@ export class UserService {
       contact_type: contact.contactType?.contact_type || '',
       contact: contact.contact,
       is_active: contact.is_active,
+      is_primary: contact.is_primary || false,
       created_at: contact.created_at,
       updated_at: contact.updated_at,
     }));

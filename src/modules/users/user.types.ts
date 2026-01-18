@@ -31,6 +31,7 @@ export interface ContactDto {
   contact_type: string;
   contact: string;
   is_active: boolean;
+  is_primary: boolean;
   created_at: Date;
   updated_at: Date;
 }
