@@ -29,6 +29,8 @@ function transformTaskToDto(task: Task): TaskResponseDto {
     created_by: task.created_by,
     started_date: task.started_date,
     due_date: task.due_date,
+    input_file_url: task.input_file_url,
+    output_file_url: task.output_file_url,
     is_active: task.is_active,
     created_at: task.created_at,
     updated_at: task.updated_at,
@@ -263,6 +265,8 @@ export class TaskService {
       created_by: createdBy,
       started_date: data.started_date || null,
       due_date: data.due_date || null,
+      input_file_url: data.input_file_url || null,
+      output_file_url: data.output_file_url || null,
       is_active: true,
     });
 
@@ -360,6 +364,12 @@ export class TaskService {
     }
     if (data.due_date !== undefined) {
       task.due_date = data.due_date;
+    }
+    if (data.input_file_url !== undefined) {
+      task.input_file_url = data.input_file_url;
+    }
+    if (data.output_file_url !== undefined) {
+      task.output_file_url = data.output_file_url;
     }
     if (data.is_active !== undefined) {
       task.is_active = data.is_active;

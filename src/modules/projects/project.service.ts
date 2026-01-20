@@ -14,6 +14,7 @@ import {
 function transformProjectToDto(project: Project): ProjectResponseDto {
   const projectWithIncludes = project as Project & {
     creator?: User;
+    projectManager?: User;
   };
 
   return {
@@ -21,6 +22,7 @@ function transformProjectToDto(project: Project): ProjectResponseDto {
     name: project.name,
     description: project.description,
     created_by: project.created_by,
+    project_manager_id: project.project_manager_id,
     start_date: project.start_date,
     end_date: project.end_date,
     is_active: project.is_active,
@@ -32,6 +34,14 @@ function transformProjectToDto(project: Project): ProjectResponseDto {
           username: projectWithIncludes.creator.username,
           first_name: projectWithIncludes.creator.first_name,
           last_name: projectWithIncludes.creator.last_name,
+        }
+      : null,
+    project_manager: projectWithIncludes.projectManager
+      ? {
+          id: projectWithIncludes.projectManager.id,
+          username: projectWithIncludes.projectManager.username,
+          first_name: projectWithIncludes.projectManager.first_name,
+          last_name: projectWithIncludes.projectManager.last_name,
         }
       : null,
   };
@@ -113,6 +123,12 @@ export class ProjectService {
           attributes: ['id', 'username', 'first_name', 'last_name'],
           required: false,
         },
+        {
+          model: User,
+          as: 'projectManager',
+          attributes: ['id', 'username', 'first_name', 'last_name'],
+          required: false,
+        },
       ],
       limit: limitNum,
       offset,
@@ -161,6 +177,7 @@ export class ProjectService {
     const project = await Project.create({
       name: data.name,
       description: data.description || null,
+      project_manager_id: data.project_manager_id || null,
       start_date: data.start_date || null,
       end_date: data.end_date || null,
       created_by: createdBy,
@@ -208,6 +225,9 @@ export class ProjectService {
     if (data.description !== undefined) {
       project.description = data.description;
     }
+    if (data.project_manager_id !== undefined) {
+      project.project_manager_id = data.project_manager_id;
+    }
     if (data.start_date !== undefined) {
       project.start_date = data.start_date;
     }
@@ -229,6 +249,12 @@ export class ProjectService {
         {
           model: User,
           as: 'creator',
+          attributes: ['id', 'username', 'first_name', 'last_name'],
+          required: false,
+        },
+        {
+          model: User,
+          as: 'projectManager',
           attributes: ['id', 'username', 'first_name', 'last_name'],
           required: false,
         },

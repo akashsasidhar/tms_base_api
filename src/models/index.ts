@@ -211,6 +211,10 @@ Project.belongsTo(User, {
   foreignKey: 'created_by',
   as: 'creator',
 });
+Project.belongsTo(User, {
+  foreignKey: 'project_manager_id',
+  as: 'projectManager',
+});
 
 Project.hasMany(Task, {
   foreignKey: 'project_id',

@@ -5,6 +5,7 @@
 export interface CreateProjectDto {
   name: string;
   description?: string | null;
+  project_manager_id?: string | null;
   start_date?: Date | null;
   end_date?: Date | null;
 }
@@ -12,6 +13,7 @@ export interface CreateProjectDto {
 export interface UpdateProjectDto {
   name?: string;
   description?: string | null;
+  project_manager_id?: string | null;
   start_date?: Date | null;
   end_date?: Date | null;
   is_active?: boolean;
@@ -22,12 +24,19 @@ export interface ProjectResponseDto {
   name: string;
   description: string | null;
   created_by: string;
+  project_manager_id: string | null;
   start_date: Date | null;
   end_date: Date | null;
   is_active: boolean;
   created_at: Date;
   updated_at: Date;
   created_by_user?: {
+    id: string;
+    username: string;
+    first_name: string | null;
+    last_name: string | null;
+  } | null;
+  project_manager?: {
     id: string;
     username: string;
     first_name: string | null;

@@ -15,6 +15,8 @@ export const createTaskSchema = z.object({
   status: z.enum(['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE']).optional().default('TODO'),
   started_date: z.coerce.date().optional().nullable(),
   due_date: z.coerce.date().optional().nullable(),
+  input_file_url: z.string().url('Invalid URL format').max(500, 'URL must not exceed 500 characters').optional().nullable(),
+  output_file_url: z.string().url('Invalid URL format').max(500, 'URL must not exceed 500 characters').optional().nullable(),
   assignee_ids: z.array(z.string().uuid('Invalid assignee ID')).optional(),
 }).refine(
   (data) => {
@@ -46,6 +48,8 @@ export const updateTaskSchema = z.object({
   status: z.enum(['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE']).optional(),
   started_date: z.coerce.date().optional().nullable(),
   due_date: z.coerce.date().optional().nullable(),
+  input_file_url: z.string().url('Invalid URL format').max(500, 'URL must not exceed 500 characters').optional().nullable(),
+  output_file_url: z.string().url('Invalid URL format').max(500, 'URL must not exceed 500 characters').optional().nullable(),
   is_active: z.boolean().optional(),
   assignee_ids: z.array(z.string().uuid('Invalid assignee ID')).optional(),
 }).refine(

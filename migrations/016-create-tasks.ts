@@ -35,6 +35,16 @@ export const up = async (queryInterface: QueryInterface): Promise<void> => {
       allowNull: false,
       defaultValue: 'MEDIUM',
     },
+    input_file_url: {
+      type: DataTypes.STRING(500),
+      allowNull: true,
+      comment: 'Raw file URL (PSD, DOC, FIGMA, ZIP, etc.) - PM/Admin only',
+    },
+    output_file_url: {
+        type: DataTypes.STRING(500),
+        allowNull: true,
+        comment: 'Edited/final file URL - Assignee only',
+    },
     status: {
       type: DataTypes.ENUM('TODO', 'IN_PROGRESS', 'REVIEW', 'DONE'),
       allowNull: false,

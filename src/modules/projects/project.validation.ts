@@ -9,6 +9,7 @@ export const createProjectSchema = z.object({
     .min(1, 'Project name is required')
     .max(255, 'Project name must not exceed 255 characters'),
   description: z.string().max(5000, 'Description must not exceed 5000 characters').optional().nullable(),
+  project_manager_id: z.string().uuid('Invalid project manager ID').optional().nullable(),
   start_date: z.coerce.date().optional().nullable(),
   end_date: z.coerce.date().optional().nullable(),
 }).refine(
@@ -35,6 +36,7 @@ export const updateProjectSchema = z.object({
     .max(255, 'Project name must not exceed 255 characters')
     .optional(),
   description: z.string().max(5000, 'Description must not exceed 5000 characters').optional().nullable(),
+  project_manager_id: z.string().uuid('Invalid project manager ID').optional().nullable(),
   start_date: z.coerce.date().optional().nullable(),
   end_date: z.coerce.date().optional().nullable(),
   is_active: z.boolean().optional(),

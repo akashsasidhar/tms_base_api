@@ -6,6 +6,7 @@ export interface ProjectAttributes extends BaseAttributes {
   name: string;
   description: string | null;
   created_by: string;
+  project_manager_id: string | null;
   start_date: Date | null;
   end_date: Date | null;
 }
@@ -14,6 +15,7 @@ export interface ProjectCreationAttributes extends BaseCreationAttributes {
   name: string;
   description?: string | null;
   created_by: string;
+  project_manager_id?: string | null;
   start_date?: Date | null;
   end_date?: Date | null;
 }
@@ -22,6 +24,7 @@ export class Project extends BaseModel<ProjectAttributes, ProjectCreationAttribu
   declare name: string;
   declare description: string | null;
   declare created_by: string;
+  declare project_manager_id: string | null;
   declare start_date: Date | null;
   declare end_date: Date | null;
 
@@ -49,6 +52,16 @@ export class Project extends BaseModel<ProjectAttributes, ProjectCreationAttribu
         },
         onUpdate: 'CASCADE',
         onDelete: 'RESTRICT',
+      },
+      project_manager_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        references: {
+          model: 'users',
+          key: 'id',
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'SET NULL',
       },
       start_date: {
         type: DataTypes.DATE,

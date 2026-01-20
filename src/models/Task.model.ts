@@ -15,6 +15,8 @@ export interface TaskAttributes extends BaseAttributes {
   created_by: string;
   started_date: Date | null;
   due_date: Date | null;
+  input_file_url: string | null;
+  output_file_url: string | null;
 }
 
 export interface TaskCreationAttributes extends BaseCreationAttributes {
@@ -27,6 +29,8 @@ export interface TaskCreationAttributes extends BaseCreationAttributes {
   created_by: string;
   started_date?: Date | null;
   due_date?: Date | null;
+  input_file_url?: string | null;
+  output_file_url?: string | null;
 }
 
 export class Task extends BaseModel<TaskAttributes, TaskCreationAttributes> implements TaskAttributes {
@@ -39,6 +43,8 @@ export class Task extends BaseModel<TaskAttributes, TaskCreationAttributes> impl
   declare created_by: string;
   declare started_date: Date | null;
   declare due_date: Date | null;
+  declare input_file_url: string | null;
+  declare output_file_url: string | null;
 
   static initialize(sequelize: Sequelize): void {
     const attributes: ModelAttributes = {

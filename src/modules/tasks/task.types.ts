@@ -11,6 +11,8 @@ export interface CreateTaskDto {
   status?: 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
   started_date?: Date | null;
   due_date?: Date | null;
+  input_file_url?: string | null;
+  output_file_url?: string | null;
   assignee_ids?: string[]; // Array of user IDs to assign the task to
 }
 
@@ -23,6 +25,8 @@ export interface UpdateTaskDto {
   status?: 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
   started_date?: Date | null;
   due_date?: Date | null;
+  input_file_url?: string | null;
+  output_file_url?: string | null;
   is_active?: boolean;
   assignee_ids?: string[]; // Array of user IDs to assign the task to
 }
@@ -38,6 +42,8 @@ export interface TaskResponseDto {
   created_by: string;
   started_date: Date | null;
   due_date: Date | null;
+  input_file_url: string | null;
+  output_file_url: string | null;
   is_active: boolean;
   created_at: Date;
   updated_at: Date;
