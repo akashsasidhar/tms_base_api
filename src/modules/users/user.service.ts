@@ -25,6 +25,7 @@ import {
   UserResponseDto,
   ContactDto,
   RoleDto,
+  UserSelectDto,
 } from './user.types';
 import sequelize from '../../config/database';
 import appConfig from '../../config/app-config';
@@ -116,6 +117,84 @@ export class UserService {
     return {
       users,
       meta: getPaginationMeta(count, pageNum, limitNum),
+    };
+  }
+
+  /**
+   * Get users list for selection/dropdown purposes
+   * Returns simplified user data (id, username, name, roles, is_active)
+   * This is a lightweight endpoint for user selection in forms, dropdowns, etc.
+   */
+  static async getUsersList(filters: {
+    role_id?: string;
+    is_active?: boolean;
+    limit?: number;
+  }): Promise<{ users: UserSelectDto[] }> {
+    const where: any = {
+      deleted_at: null,
+    };
+
+    if (filters.is_active !== undefined) {
+      where.is_active = filters.is_active;
+    }
+
+    const include: any[] = [
+      {
+        model: UserRole,
+        as: 'userRoles',
+        required: false,
+        include: [
+          {
+            model: Role,
+            as: 'role',
+            required: false,
+            where: {
+              ...(filters.role_id ? { id: filters.role_id } : {}),
+              deleted_at: null,
+            },
+          },
+        ],
+      },
+    ];
+
+    // If filtering by role_id, we need to ensure the user has that role
+    if (filters.role_id) {
+      include[0].required = true;
+    }
+
+    const users = await User.findAll({
+      where,
+      include,
+      limit: filters.limit || 1000,
+      order: [['first_name', 'ASC'], ['last_name', 'ASC'], ['username', 'ASC']],
+      subQuery: false, // Prevents duplicate rows when using includes
+    });
+
+    const userSelectList: UserSelectDto[] = users.map((user) => {
+      const userWithIncludes = user as User & {
+        userRoles?: Array<UserRole & { role?: Role }>;
+      };
+
+      const roles = (userWithIncludes.userRoles || [])
+        .map((ur: UserRole & { role?: Role }) => ur.role)
+        .filter((role): role is Role => role !== null && role !== undefined)
+        .map((role: Role) => ({
+          id: role.id,
+          name: role.name,
+        }));
+
+      return {
+        id: user.id,
+        username: user.username,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        is_active: user.is_active,
+        roles,
+      };
+    });
+
+    return {
+      users: userSelectList,
     };
   }
 

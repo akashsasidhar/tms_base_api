@@ -88,7 +88,8 @@ export function authorize(...allowedRoles: string[]) {
     }
 
     const hasRole = req.user.roles.some((role) => allowedRoles.includes(role.name));
-
+console.log(req.user.roles,'req.user.roles');
+console.log(allowedRoles,'allowedRoles');
     if (!hasRole) {
       res.status(403).json({
         success: false,

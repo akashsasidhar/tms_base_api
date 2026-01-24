@@ -110,7 +110,7 @@ export const changeUserPasswordSchema = z.object({
  */
 export const getUsersQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional(),
-  limit: z.coerce.number().int().positive().max(100).optional(),
+  limit: z.coerce.number().int().positive().max(1000).optional(),
   username: z.string().optional(),
   first_name: z.string().optional(),
   last_name: z.string().optional(),
@@ -119,4 +119,14 @@ export const getUsersQuerySchema = z.object({
   contact: z.string().optional(),
   sort_field: z.enum(['username', 'first_name', 'last_name', 'created_at', 'updated_at', 'is_active']).optional(),
   sort_order: z.enum(['ASC', 'DESC']).optional(),
+});
+
+/**
+ * Get users list query validation schema (simplified for selection/dropdown)
+ * This endpoint is designed for user selection in dropdowns, assignee selection, etc.
+ */
+export const getUsersListQuerySchema = z.object({
+  role_id: z.string().uuid('Invalid role ID').optional(),
+  is_active: z.coerce.boolean().optional(),
+  limit: z.coerce.number().int().positive().max(1000).optional().default(1000),
 });

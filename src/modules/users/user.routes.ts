@@ -7,6 +7,19 @@ import { UserController } from './user.controller';
 const router = Router();
 
 /**
+ * @route   GET /api/users/list
+ * @desc    Get users list for selection/dropdown purposes (simplified data)
+ * @access  Private - Requires authentication only (no specific permission)
+ * @note    This endpoint is designed for user selection in forms, assignee selection, etc.
+ *          Returns only essential fields: id, username, first_name, last_name, roles, is_active
+ */
+router.get(
+  '/list',
+  authenticate,
+  UserController.getUsersList
+);
+
+/**
  * @route   GET /api/users
  * @desc    Get all users with filtering, pagination, and sorting
  * @access  Private - Requires 'users:read' permission

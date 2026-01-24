@@ -59,7 +59,7 @@ export const updateProjectSchema = z.object({
  */
 export const getProjectsQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1).optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(10).optional(),
+  limit: z.coerce.number().int().min(1).max(1000).default(10).optional(),
   search: z.string().optional(),
   name: z.string().optional(),
   created_by: z.string().uuid('Invalid created_by ID').optional(),

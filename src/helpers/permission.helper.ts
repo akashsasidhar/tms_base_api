@@ -155,7 +155,8 @@ export function hasAllPermissions(
   if (requiredPermissions.length === 0) {
     return true; // No requirements means allowed
   }
-
+  console.log(userPermissions,'userPermissions');
+  console.log(requiredPermissions,'requiredPermissions');
   return requiredPermissions.every((permission) =>
     hasPermission(userPermissions, permission)
   );

@@ -9,6 +9,7 @@ import {
   assignRoleSchema,
   changeUserPasswordSchema,
   getUsersQuerySchema,
+  getUsersListQuerySchema,
 } from './user.validation';
 import { CreateUserDto, UpdateUserDto, AddContactDto, UpdateContactDto } from './user.types';
 import { success, error, paginated } from '../../utils/response.util';
@@ -56,6 +57,39 @@ export class UserController {
       );
 
       paginated(res, result.users, result.meta, 'Users retrieved successfully');
+    } catch (err) {
+      if (err instanceof Error && err.name === 'ZodError') {
+        error(res, 'Validation failed', 400, [err.message]);
+        return;
+      }
+      next(err);
+    }
+  }
+
+  /**
+   * Get users list for selection/dropdown purposes
+   * This is a lightweight endpoint that returns simplified user data
+   * Used for user selection in forms, assignee selection, project manager selection, etc.
+   * Only requires authentication (no specific permission needed)
+   */
+  static async getUsersList(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      // Validate query parameters
+      const query = getUsersListQuerySchema.parse(req.query);
+
+      const filters: {
+        role_id?: string;
+        is_active?: boolean;
+        limit?: number;
+      } = {};
+
+      if (query.role_id) filters.role_id = query.role_id;
+      if (query.is_active !== undefined) filters.is_active = query.is_active;
+      if (query.limit) filters.limit = query.limit;
+
+      const result = await UserService.getUsersList(filters);
+
+      success(res, result, 'Users list retrieved successfully');
     } catch (err) {
       if (err instanceof Error && err.name === 'ZodError') {
         error(res, 'Validation failed', 400, [err.message]);

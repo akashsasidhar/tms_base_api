@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { jwtConfig } from '../../config/jwt';
 import { AuthRequest } from '../../middleware/auth.middleware';
+import { loadUserPermissions, clearUserPermissionCache } from '../../middleware/rbac.middleware';
 import {
   registerSchema,
   loginSchema,
@@ -93,12 +94,20 @@ export class AuthController {
         res.cookie('refreshToken', result.data.refreshToken, jwtConfig.cookieOptions);
       }
 
+      // Load permissions for the user (clear cache first to ensure fresh permissions)
+      const userId = result.data?.user.id || '';
+      if (userId) {
+        clearUserPermissionCache(userId);
+      }
+      const { permissions } = await loadUserPermissions(userId);
+
       // Return response without tokens in body (security best practice)
       res.status(200).json({
         success: true,
         message: result.message,
         data: {
           user: result.data?.user,
+          permissions,
         },
       });
     } catch (error) {

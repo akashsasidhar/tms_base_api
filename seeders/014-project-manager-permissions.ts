@@ -19,7 +19,7 @@ export const up = async (queryInterface: QueryInterface): Promise<void> => {
     WHERE is_active = true 
     AND (
       (resource = 'projects' AND action IN ('create', 'read', 'update'))
-      OR (resource = 'tasks' AND action IN ('create', 'read', 'update', 'delete'))
+      OR (resource = 'tasks' AND action IN ('create', 'read', 'update'))
     )
   `);
 

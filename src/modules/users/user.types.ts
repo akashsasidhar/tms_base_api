@@ -70,3 +70,19 @@ export interface UserListResponseDto {
     hasPreviousPage: boolean;
   };
 }
+
+/**
+ * Simplified user DTO for selection/dropdown purposes
+ * Contains only essential fields needed for user selection
+ */
+export interface UserSelectDto {
+  id: string;
+  username: string;
+  first_name: string | null;
+  last_name: string | null;
+  is_active: boolean;
+  roles: Array<{
+    id: string;
+    name: string;
+  }>;
+}

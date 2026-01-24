@@ -93,20 +93,20 @@ export function checkPermission(
 
       // Load user permissions (with caching)
       const { permissions, roles } = await loadUserPermissions(userId);
-
+      
       // Attach permissions and roles to request user object
       req.user.permissions = permissions;
       req.user.roles = roles.map((r) => ({ id: r.id, name: r.name }));
-
+      
       // Check permissions based on logic
       let hasAccess = false;
-
       if (logic === 'OR') {
         hasAccess = hasAnyPermission(permissions, requiredPermissions);
       } else {
+        console.log(permissions,'======permissions')
+        console.log(requiredPermissions,'======requiredPermissions')
         hasAccess = hasAllPermissions(permissions, requiredPermissions);
       }
-
       if (!hasAccess) {
         res.status(403).json({
           success: false,
