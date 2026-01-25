@@ -49,7 +49,7 @@ export const removePermissionsSchema = z.object({
  */
 export const getRolesQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional(),
-  limit: z.coerce.number().int().positive().max(100).optional(),
+  limit: z.coerce.number().int().positive().max(1000).optional(),
   name: z.string().optional(),
   is_active: z.coerce.boolean().optional(),
   sort_field: z.enum(['name', 'created_at', 'updated_at', 'is_active']).optional(),

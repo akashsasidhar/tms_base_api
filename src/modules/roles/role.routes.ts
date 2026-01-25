@@ -7,6 +7,17 @@ import { RoleController } from './role.controller';
 const router = Router();
 
 /**
+ * @route   GET /api/roles/task-types
+ * @desc    Get roles for task type selection (excludes Project Manager, Admin, Super Admin)
+ * @access  Private - Requires authentication only (no specific permission)
+ */
+router.get(
+  '/task-types',
+  authenticate,
+  RoleController.getTaskTypes
+);
+
+/**
  * @route   GET /api/roles
  * @desc    Get all roles with filtering and pagination
  * @access  Private - Requires 'roles:read' permission

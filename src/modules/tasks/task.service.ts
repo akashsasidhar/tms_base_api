@@ -123,7 +123,38 @@ export class TaskService {
       where.is_active = filters.is_active;
     }
 
-    if (filters.due_date_from || filters.due_date_to) {
+    // Handle list_type filter (active, pending, completed)
+    if (filters.list_type) {
+      const now = new Date();
+      now.setHours(0, 0, 0, 0); // Set to start of day for comparison
+
+      if (filters.list_type === 'completed') {
+        // Completed: status = DONE
+        where.status = 'DONE';
+      } else if (filters.list_type === 'pending') {
+        // Pending: status != DONE AND due_date < today AND due_date is not null
+        where.status = {
+          [Op.ne]: 'DONE',
+        };
+        where.due_date = {
+          [Op.lt]: now,
+          [Op.ne]: null, // Must have a due date
+        };
+      } else if (filters.list_type === 'active') {
+        // Active: status != DONE AND (due_date is null OR due_date >= today)
+        where.status = {
+          [Op.ne]: 'DONE',
+        };
+        where[Op.or] = [
+          { due_date: null },
+          { due_date: { [Op.gte]: now } },
+        ];
+      }
+    }
+    
+    // Apply date range filters only if list_type is not specified
+    if (!filters.list_type && (filters.due_date_from || filters.due_date_to)) {
+      // Only apply date range filters if list_type is not specified
       where.due_date = {};
       if (filters.due_date_from) {
         where.due_date[Op.gte] = filters.due_date_from;

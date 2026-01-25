@@ -82,4 +82,5 @@ export interface TaskFilters {
   is_active?: boolean;
   due_date_from?: Date;
   due_date_to?: Date;
+  list_type?: 'active' | 'pending' | 'completed'; // Filter by task category
 }

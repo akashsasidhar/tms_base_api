@@ -36,6 +36,7 @@ export class TaskController {
       if (query.created_by) filters.created_by = query.created_by;
       if (query.assigned_to) filters.assigned_to = query.assigned_to;
       if (query.is_active !== undefined) filters.is_active = query.is_active;
+      if (query.list_type) filters.list_type = query.list_type;
       if (query.due_date_from) filters.due_date_from = query.due_date_from;
       if (query.due_date_to) filters.due_date_to = query.due_date_to;
 
@@ -51,6 +52,78 @@ export class TaskController {
       );
 
       paginated(res, result.tasks, result.meta, 'Tasks retrieved successfully');
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Get pending tasks (overdue and not completed)
+   */
+  static async getPendingTasks(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const query = getTasksQuerySchema.parse(req.query);
+
+      const filters: TaskFilters = {
+        list_type: 'pending',
+      };
+
+      if (query.search) {
+        filters.title = query.search;
+      }
+      if (query.project_id) filters.project_id = query.project_id;
+      if (query.task_type) filters.task_type = query.task_type;
+      if (query.priority) filters.priority = query.priority;
+      if (query.assigned_to) filters.assigned_to = query.assigned_to;
+
+      const sortField = query.sort_field;
+      const sortOrder = query.sort_order || 'ASC';
+
+      const result = await TaskService.getAllTasks(
+        filters,
+        query.page || 1,
+        query.limit || 10,
+        sortField,
+        sortOrder
+      );
+
+      paginated(res, result.tasks, result.meta, 'Pending tasks retrieved successfully');
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Get completed tasks
+   */
+  static async getCompletedTasks(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const query = getTasksQuerySchema.parse(req.query);
+
+      const filters: TaskFilters = {
+        list_type: 'completed',
+      };
+
+      if (query.search) {
+        filters.title = query.search;
+      }
+      if (query.project_id) filters.project_id = query.project_id;
+      if (query.task_type) filters.task_type = query.task_type;
+      if (query.priority) filters.priority = query.priority;
+      if (query.assigned_to) filters.assigned_to = query.assigned_to;
+
+      const sortField = query.sort_field;
+      const sortOrder = query.sort_order || 'ASC';
+
+      const result = await TaskService.getAllTasks(
+        filters,
+        query.page || 1,
+        query.limit || 10,
+        sortField,
+        sortOrder
+      );
+
+      paginated(res, result.tasks, result.meta, 'Completed tasks retrieved successfully');
     } catch (err) {
       next(err);
     }

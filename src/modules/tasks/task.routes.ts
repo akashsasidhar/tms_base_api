@@ -19,6 +19,30 @@ router.get(
 );
 
 /**
+ * @route   GET /api/tasks/pending
+ * @desc    Get pending tasks (overdue and not completed)
+ * @access  Private - Requires 'tasks:read' permission
+ */
+router.get(
+  '/pending',
+  authenticate,
+  checkPermission([PERMISSIONS.TASKS.READ]),
+  TaskController.getPendingTasks
+);
+
+/**
+ * @route   GET /api/tasks/completed
+ * @desc    Get completed tasks
+ * @access  Private - Requires 'tasks:read' permission
+ */
+router.get(
+  '/completed',
+  authenticate,
+  checkPermission([PERMISSIONS.TASKS.READ]),
+  TaskController.getCompletedTasks
+);
+
+/**
  * @route   GET /api/tasks/:id
  * @desc    Get task by ID
  * @access  Private - Requires 'tasks:read' permission

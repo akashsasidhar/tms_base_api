@@ -117,6 +117,26 @@ async function transformRoleToStatsDto(role: Role): Promise<RoleWithStatsDto> {
  */
 export class RoleService {
   /**
+   * Get roles for task type selection (simple list, no pagination)
+   * Returns only active roles with id and name
+   */
+  static async getRolesForTaskTypes(): Promise<Array<{ id: string; name: string }>> {
+    const roles = await Role.findAll({
+      where: {
+        deleted_at: null,
+        is_active: true,
+      },
+      attributes: ['id', 'name'],
+      order: [['name', 'ASC']],
+    });
+
+    return roles.map((role) => ({
+      id: role.id,
+      name: role.name,
+    }));
+  }
+
+  /**
    * Get all roles with filtering and pagination
    */
   static async getAllRoles(

@@ -16,6 +16,30 @@ import { success, error, paginated } from '../../utils/response.util';
  */
 export class RoleController {
   /**
+   * Get roles for task type selection (reusable endpoint)
+   * Returns only role names, excluding Project Manager, Admin, Super Admin
+   */
+  static async getTaskTypes(_req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const EXCLUDED_ROLES = ['Project Manager', 'Admin', 'Super Admin', 'User'];
+      
+      const roles = await RoleService.getRolesForTaskTypes();
+      
+      // Filter out excluded roles and return only names
+      const taskTypes = roles
+        .filter((role) => !EXCLUDED_ROLES.some((excluded) => role.name.toLowerCase() === excluded.toLowerCase()))
+        .map((role) => ({
+          id: role.id,
+          name: role.name,
+        }));
+
+      success(res, taskTypes, 'Task types retrieved successfully');
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
    * Get all roles
    */
   static async getRoles(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
