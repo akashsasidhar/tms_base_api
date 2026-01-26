@@ -84,3 +84,12 @@ export interface TaskFilters {
   due_date_to?: Date;
   list_type?: 'active' | 'pending' | 'completed'; // Filter by task category
 }
+
+/**
+ * DTO for assignee task updates (limited fields)
+ */
+export interface AssigneeUpdateTaskDto {
+  status?: 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
+  output_file_url?: string | null;
+  comment?: string | null; // Comment for this update
+}

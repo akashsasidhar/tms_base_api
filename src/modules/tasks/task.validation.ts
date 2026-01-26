@@ -67,6 +67,26 @@ export const updateTaskSchema = z.object({
 );
 
 /**
+ * Assignee update task validation schema (limited fields)
+ */
+export const assigneeUpdateTaskSchema = z.object({
+  status: z.enum(['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE']).optional(),
+  output_file_url: z
+    .string()
+    .max(500, 'URL must not exceed 500 characters')
+    .refine(
+      (val) => {
+        if (!val || val.trim() === '') return true; // Allow empty string
+        return /^https?:\/\/.+/.test(val); // Validate URL format if provided
+      },
+      { message: 'Invalid URL format' }
+    )
+    .optional()
+    .nullable(),
+  comment: z.string().max(5000, 'Comment must not exceed 5000 characters').optional().nullable(),
+});
+
+/**
  * Get tasks query validation schema
  */
 export const getTasksQuerySchema = z.object({

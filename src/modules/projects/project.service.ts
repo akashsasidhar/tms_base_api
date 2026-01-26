@@ -282,4 +282,32 @@ export class ProjectService {
     await project.softDelete(deletedBy);
     return true;
   }
+
+  /**
+   * Get simplified list of projects (for dropdowns, etc.)
+   * Returns only id, name, and is_active
+   */
+  static async getProjectsList(
+    filters: { is_active?: boolean } = {}
+  ): Promise<Array<{ id: string; name: string; is_active: boolean }>> {
+    const where: any = {
+      deleted_at: null,
+    };
+
+    if (filters.is_active !== undefined) {
+      where.is_active = filters.is_active;
+    }
+
+    const projects = await Project.findAll({
+      where,
+      attributes: ['id', 'name', 'is_active'],
+      order: [['name', 'ASC']],
+    });
+
+    return projects.map((project) => ({
+      id: project.id,
+      name: project.name,
+      is_active: project.is_active,
+    }));
+  }
 }

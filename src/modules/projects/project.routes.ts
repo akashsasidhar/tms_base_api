@@ -7,6 +7,17 @@ import { ProjectController } from './project.controller';
 const router = Router();
 
 /**
+ * @route   GET /api/projects/list
+ * @desc    Get simplified list of projects (for dropdowns, etc.)
+ * @access  Private - Requires authentication only (no permission required)
+ */
+router.get(
+  '/list',
+  authenticate,
+  ProjectController.getProjectsList
+);
+
+/**
  * @route   GET /api/projects
  * @desc    Get all projects with filtering, pagination, and sorting
  * @access  Private - Requires 'projects:read' permission (Project Manager/Admin/Project Assigned Roles)

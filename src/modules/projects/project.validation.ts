@@ -71,3 +71,10 @@ export const getProjectsQuerySchema = z.object({
   sort_field: z.enum(['name', 'created_at', 'start_date', 'end_date']).optional(),
   sort_order: z.enum(['ASC', 'DESC']).default('ASC').optional(),
 });
+
+/**
+ * Get projects list query validation schema (simplified, for reusable endpoint)
+ */
+export const getProjectsListQuerySchema = z.object({
+  is_active: z.coerce.boolean().optional(),
+});

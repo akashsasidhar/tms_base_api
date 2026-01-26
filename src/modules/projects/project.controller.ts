@@ -5,6 +5,7 @@ import {
   createProjectSchema,
   updateProjectSchema,
   getProjectsQuerySchema,
+  getProjectsListQuerySchema,
 } from "./project.validation";
 import { CreateProjectDto, UpdateProjectDto, ProjectFilters } from "./project.types";
 import { success, error, paginated } from "../../utils/response.util";
@@ -151,6 +152,28 @@ export class ProjectController {
       }
 
       success(res, null, "Project deleted successfully");
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Get simplified list of projects (for dropdowns, etc.)
+   * No permission required - only authentication
+   */
+  static async getProjectsList(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      // Validate query parameters
+      const query = getProjectsListQuerySchema.parse(req.query);
+
+      const filters: { is_active?: boolean } = {};
+      if (query.is_active !== undefined) {
+        filters.is_active = query.is_active;
+      }
+
+      const projects = await ProjectService.getProjectsList(filters);
+
+      success(res, projects, "Projects list retrieved successfully");
     } catch (err) {
       next(err);
     }

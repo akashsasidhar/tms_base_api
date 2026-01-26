@@ -1,11 +1,12 @@
 import { Op } from 'sequelize';
-import { Task, Project, User, TaskAssignment } from '../../models';
+import { Task, Project, User, TaskAssignment, TaskUpdate } from '../../models';
 import { getPaginationParams, getPaginationMeta } from '../../helpers/pagination.helper';
 import {
   CreateTaskDto,
   UpdateTaskDto,
   TaskResponseDto,
   TaskFilters,
+  AssigneeUpdateTaskDto,
 } from './task.types';
 
 /**
@@ -477,6 +478,108 @@ export class TaskService {
 
         await TaskAssignment.bulkCreate(assignments);
       }
+    }
+
+    // Reload with associations
+    await task.reload({
+      include: [
+        {
+          model: Project,
+          as: 'project',
+          attributes: ['id', 'name'],
+          required: false,
+        },
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['id', 'username', 'first_name', 'last_name'],
+          required: false,
+        },
+        {
+          model: TaskAssignment,
+          as: 'assignments',
+          where: {
+            is_active: true,
+            deleted_at: null,
+          },
+          required: false,
+          include: [
+            {
+              model: User,
+              as: 'user',
+              attributes: ['id', 'username', 'first_name', 'last_name'],
+              required: false,
+            },
+          ],
+        },
+      ],
+    });
+
+    return transformTaskToDto(task);
+  }
+
+  /**
+   * Update task by assignee (limited fields: status, output_file_url, comment)
+   * Creates TaskUpdate record when status or comment changes
+   */
+  static async assigneeUpdateTask(
+    id: string,
+    data: AssigneeUpdateTaskDto,
+    updatedBy: string
+  ): Promise<TaskResponseDto | null> {
+    // Find task with assignments
+    const task = await Task.findOne({
+      where: {
+        id,
+        deleted_at: null,
+      },
+      include: [
+        {
+          model: TaskAssignment,
+          as: 'assignments',
+          where: {
+            user_id: updatedBy,
+            is_active: true,
+            deleted_at: null,
+          },
+          required: true, // User must be assigned to the task
+        },
+      ],
+    });
+
+    if (!task) {
+      return null;
+    }
+
+    const oldStatus = task.status;
+    let statusChanged = false;
+
+    // Update status if provided
+    if (data.status !== undefined && data.status !== task.status) {
+      task.status = data.status;
+      statusChanged = true;
+    }
+
+    // Update output_file_url if provided
+    if (data.output_file_url !== undefined) {
+      task.output_file_url = data.output_file_url;
+    }
+
+    // Update audit field
+    task.updated_by = updatedBy;
+
+    await task.save();
+
+    // Create TaskUpdate record if status changed or comment provided
+    if (statusChanged || (data.comment !== undefined && data.comment !== null && data.comment.trim() !== '')) {
+      await TaskUpdate.create({
+        task_id: task.id,
+        updated_by: updatedBy,
+        old_status: statusChanged ? oldStatus : null,
+        new_status: task.status,
+        comment: data.comment || null,
+        created_by: updatedBy,
+      });
     }
 
     // Reload with associations

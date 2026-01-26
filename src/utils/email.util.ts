@@ -16,8 +16,14 @@ class EmailService {
     }
 
     // Validate email credentials are provided
+    console.log('[EmailService] Checking email configuration...');
+    console.log('[EmailService] SYSTEM_EMAIL:', appConfig.SYSTEM_EMAIL ? `${appConfig.SYSTEM_EMAIL.substring(0, 3)}***` : 'NOT SET');
+    console.log('[EmailService] SYSTEM_EMAIL_PASSWORD:', appConfig.SYSTEM_EMAIL_PASSWORD ? 'SET' : 'NOT SET');
+    
     if (!appConfig.SYSTEM_EMAIL || !appConfig.SYSTEM_EMAIL_PASSWORD) {
-      throw new Error('SYSTEM_EMAIL and SYSTEM_EMAIL_PASSWORD must be set in environment variables');
+      const errorMsg = 'SYSTEM_EMAIL and SYSTEM_EMAIL_PASSWORD must be set in environment variables';
+      console.error('[EmailService] Configuration error:', errorMsg);
+      throw new Error(errorMsg);
     }
 
     // Gmail SMTP configuration
@@ -177,6 +183,80 @@ class EmailService {
     } catch (error) {
       console.error('Error sending setup password email:', error);
       throw new Error('Failed to send setup password email');
+    }
+  }
+
+  /**
+   * Send resend verification email for unverified users
+   */
+  async sendResendVerificationEmail(
+    to: string,
+    setupToken: string,
+    userId: string,
+    userName?: string
+  ): Promise<void> {
+    const transporter = this.getTransporter();
+    const frontendUrl = appConfig.FRONT_END_PORTAL || 'http://localhost:3000';
+    const setupUrl = `${frontendUrl}/setup-password?token=${setupToken}&user_id=${userId}`;
+
+    const mailOptions = {
+      from: `"Task Management System" <${appConfig.SYSTEM_EMAIL}>`,
+      to,
+      subject: 'Verify Your Account - Set Up Your Password',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Verify Your Account</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: #f4f4f4; padding: 20px; border-radius: 5px;">
+            <h2 style="color: #2c3e50;">Verify Your Account</h2>
+            <p>Hello ${userName || 'User'},</p>
+            <p>You requested to verify your account and set up your password for the Task Management System.</p>
+            <p>To complete your account verification and set up your password, please click the button below:</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${setupUrl}" 
+                 style="background-color: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                Verify Account & Set Password
+              </a>
+            </div>
+            <p>Or copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; color: #007bff;">${setupUrl}</p>
+            <p><strong>This link will expire in 24 hours.</strong></p>
+            <p>If you didn't request this verification email, please ignore this message. Your account will remain unverified until you complete the verification process.</p>
+            <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+            <p style="font-size: 12px; color: #666;">
+              This is an automated message. Please do not reply to this email.
+            </p>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+        Verify Your Account
+        
+        Hello ${userName || 'User'},
+        
+        You requested to verify your account and set up your password for the Task Management System.
+        
+        To complete your account verification and set up your password, please click the link below:
+        ${setupUrl}
+        
+        This link will expire in 24 hours.
+        
+        If you didn't request this verification email, please ignore this message. Your account will remain unverified until you complete the verification process.
+      `,
+    };
+
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log(`Resend verification email sent to ${to}`);
+    } catch (error) {
+      console.error('Error sending resend verification email:', error);
+      throw new Error('Failed to send resend verification email');
     }
   }
 

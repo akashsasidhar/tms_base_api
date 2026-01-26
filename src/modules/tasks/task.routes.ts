@@ -90,4 +90,16 @@ router.delete(
   TaskController.deleteTask
 );
 
+/**
+ * @route   PUT /api/tasks/:id/assignee-update
+ * @desc    Update task by assignee (limited fields: status, output_file_url, comment)
+ * @access  Private - Requires 'tasks:read' permission (assignee must be assigned to the task)
+ */
+router.put(
+  '/:id/assignee-update',
+  authenticate,
+  checkPermission([PERMISSIONS.TASKS.READ]),
+  TaskController.assigneeUpdateTask
+);
+
 export default router;

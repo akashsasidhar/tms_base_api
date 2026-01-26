@@ -5,8 +5,9 @@ import {
   createTaskSchema,
   updateTaskSchema,
   getTasksQuerySchema,
+  assigneeUpdateTaskSchema,
 } from './task.validation';
-import { CreateTaskDto, UpdateTaskDto, TaskFilters } from './task.types';
+import { CreateTaskDto, UpdateTaskDto, TaskFilters, AssigneeUpdateTaskDto } from './task.types';
 import { success, error, paginated } from '../../utils/response.util';
 
 /**
@@ -207,6 +208,37 @@ export class TaskController {
 
       if (!task) {
         error(res, 'Task not found', 404);
+        return;
+      }
+
+      success(res, task, 'Task updated successfully');
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Update task by assignee (limited fields: status, output_file_url, comment)
+   */
+  static async assigneeUpdateTask(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+
+      if (!id || typeof id !== 'string') {
+        error(res, 'Invalid task ID', 400);
+        return;
+      }
+
+      // Validate request body
+      const validatedData = assigneeUpdateTaskSchema.parse(req.body) as AssigneeUpdateTaskDto;
+
+      // Get current user ID
+      const updatedBy = req.user!.id;
+
+      const task = await TaskService.assigneeUpdateTask(id, validatedData, updatedBy);
+
+      if (!task) {
+        error(res, 'Task not found or you are not assigned to this task', 404);
         return;
       }
 

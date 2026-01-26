@@ -948,30 +948,36 @@ export class AuthService {
    */
   static async resendVerificationEmail(email: string): Promise<AuthResponse> {
     try {
+      console.log(`[ResendVerification] Starting resend verification for email: ${email}`);
+      
       // Format email
       const formattedEmail = formatContact(email, 'email');
+      console.log(`[ResendVerification] Formatted email: ${formattedEmail}`);
       
       // Find user contact by email
+      console.log(`[ResendVerification] Looking up contact type...`);
       const emailContactType = await ContactType.findOne({
         where: {
           [Op.or]: [
             { contact_type: 'primary email' },
-            { contact_type: 'primary_email' },
-            { contact_type: 'email' },
+            { contact_type: 'primary_email' }
           ],
         },
       });
 
       if (!emailContactType) {
+        console.error(`[ResendVerification] Contact type not found`);
         return {
           success: false,
           message: 'Email contact type not found',
           errors: ['Email contact type is not configured'],
         };
       }
+      console.log(`[ResendVerification] Contact type found: ${emailContactType.contact_type} (ID: ${emailContactType.id})`);
 
-      // Find user contact
-      const userContact = await UserContact.findOne({
+      // Find user contact - try with is_primary first, then without
+      console.log(`[ResendVerification] Looking up user contact for email: ${formattedEmail}, contact_type_id: ${emailContactType.id}`);
+      let userContact = await UserContact.findOne({
         where: {
           contact: formattedEmail,
           contact_type_id: emailContactType.id,
@@ -985,27 +991,66 @@ export class AuthService {
         ],
       });
 
+      // If not found with is_primary, try without is_primary constraint
       if (!userContact) {
+        console.log(`[ResendVerification] User contact not found with is_primary=true, trying without is_primary constraint...`);
+        userContact = await UserContact.findOne({
+          where: {
+            contact: formattedEmail,
+            contact_type_id: emailContactType.id,
+          },
+          include: [
+            {
+              model: User,
+              as: 'user',
+            },
+          ],
+        });
+      }
+
+      if (!userContact) {
+        console.log(`[ResendVerification] User contact not found for email: ${formattedEmail} with contact_type_id: ${emailContactType.id}`);
+        // Try to find any contact with this email (any contact type)
+        const anyContact = await UserContact.findOne({
+          where: {
+            contact: formattedEmail,
+          },
+          include: [
+            {
+              model: User,
+              as: 'user',
+            },
+          ],
+        });
+        
+        if (anyContact) {
+          console.log(`[ResendVerification] Found contact with different type: ${anyContact.contact_type_id}`);
+        }
+        
         // Don't reveal if user exists (security best practice)
         return {
           success: true,
           message: 'If the email exists and account is unverified, a verification email will be sent',
         };
       }
+      console.log(`[ResendVerification] User contact found (ID: ${userContact.id})`);
 
       // Type assertion for included user
       const user = (userContact as UserContact & { user: User }).user;
       
       if (!user) {
+        console.log(`[ResendVerification] User not found in contact association`);
         // Don't reveal if user exists (security best practice)
         return {
           success: true,
           message: 'If the email exists and account is unverified, a verification email will be sent',
         };
       }
+      console.log(`[ResendVerification] User found (ID: ${user.id}, Verified: ${user.is_verified}, Active: ${user.is_active})`);
 
       // Only send if user is not verified
       if (user.is_verified) {
+        console.log(`[ResendVerification] User is already verified, skipping email send`);
         return {
           success: false,
           message: 'Account already verified',
@@ -1015,12 +1060,15 @@ export class AuthService {
 
       // Check if user is active
       if (!user.is_active) {
+        console.log(`[ResendVerification] User is inactive, skipping email send`);
         return {
           success: false,
           message: 'Account is inactive',
           errors: ['Your account has been deactivated'],
         };
       }
+      
+      console.log(`[ResendVerification] User is unverified and active, proceeding with email send`);
 
       // Generate new verification token
       const setupToken = crypto.randomBytes(32).toString('hex');
@@ -1054,13 +1102,25 @@ export class AuthService {
         const userName = user.first_name && user.last_name 
           ? `${user.first_name} ${user.last_name}` 
           : user.username;
-        await emailService.sendSetupPasswordEmail(formattedEmail, setupToken, user.id, userName);
+        
+        console.log(`[ResendVerification] Attempting to send email to: ${formattedEmail}`);
+        console.log(`[ResendVerification] User ID: ${user.id}, User Name: ${userName}`);
+        console.log(`[ResendVerification] Setup Token: ${setupToken.substring(0, 10)}...`);
+        
+        await emailService.sendResendVerificationEmail(formattedEmail, setupToken, user.id, userName);
+        
+        console.log(`[ResendVerification] Email sent successfully to: ${formattedEmail}`);
       } catch (emailError) {
-        console.error('Failed to send verification email:', emailError);
+        console.error('[ResendVerification] Failed to send verification email:', emailError);
+        console.error('[ResendVerification] Error details:', emailError instanceof Error ? emailError.message : String(emailError));
+        console.error('[ResendVerification] Stack trace:', emailError instanceof Error ? emailError.stack : 'No stack trace');
         return {
           success: false,
           message: 'Failed to send verification email',
-          errors: ['Unable to send verification email. Please try again later.'],
+          errors: [
+            'Unable to send verification email. Please try again later.',
+            emailError instanceof Error ? emailError.message : 'Unknown error occurred',
+          ],
         };
       }
 

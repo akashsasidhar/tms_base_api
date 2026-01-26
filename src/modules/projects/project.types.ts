@@ -53,3 +53,12 @@ export interface ProjectFilters {
   end_date_from?: Date;
   end_date_to?: Date;
 }
+
+/**
+ * Simplified project DTO for list endpoint (reusable, no permission required)
+ */
+export interface ProjectSelectDto {
+  id: string;
+  name: string;
+  is_active: boolean;
+}
