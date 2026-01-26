@@ -40,10 +40,14 @@ export interface AuthResponse {
   success: boolean;
   message: string;
   data?: {
-    user: UserWithRoles;
+    user?: UserWithRoles;
     accessToken?: string;
     refreshToken?: string;
     permissions?: string[];
+    // For unverified accounts
+    user_id?: string;
+    email?: string;
+    requires_verification?: boolean;
   };
   errors?: string[];
 }

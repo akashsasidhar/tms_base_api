@@ -3,6 +3,7 @@ import { AuthService } from './auth.service';
 import { jwtConfig } from '../../config/jwt';
 import { AuthRequest } from '../../middleware/auth.middleware';
 import { loadUserPermissions, clearUserPermissionCache } from '../../middleware/rbac.middleware';
+import { verifyRefreshToken } from '../../utils/jwt.util';
 import {
   registerSchema,
   loginSchema,
@@ -11,6 +12,7 @@ import {
   changePasswordSchema,
   verifyContactSchema,
   setupPasswordSchema,
+  resendVerificationSchema,
 } from './auth.validation';
 import { RegisterRequest, LoginRequest } from './auth.types';
 
@@ -95,7 +97,7 @@ export class AuthController {
       }
 
       // Load permissions for the user (clear cache first to ensure fresh permissions)
-      const userId = result.data?.user.id || '';
+      const userId = result.data?.user?.id || '';
       if (userId) {
         clearUserPermissionCache(userId);
       }
@@ -130,34 +132,69 @@ export class AuthController {
 
   /**
    * Logout user
+   * Works even if access token is expired (uses refresh token to identify user)
    */
   static async logout(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.user?.userId;
       const refreshToken = req.cookies?.['refreshToken'] || req.body.refreshToken;
 
-      if (!userId || !refreshToken) {
-        res.status(400).json({
-          success: false,
-          message: 'Missing required fields',
-          errors: ['User ID and refresh token are required'],
+      if (!refreshToken) {
+        // If no refresh token, just clear cookies and return success
+        res.clearCookie('accessToken', jwtConfig.accessTokenCookieOptions);
+        res.clearCookie('refreshToken', jwtConfig.cookieOptions);
+        res.status(200).json({
+          success: true,
+          message: 'Logged out successfully',
         });
         return;
       }
 
-      // Call service
-      const result = await AuthService.logout(userId, refreshToken);
+      // Try to get userId from access token first (if valid)
+      let userId: string | undefined = req.user?.userId;
 
-      // Clear cookies
+      // If access token is invalid/expired, extract userId from refresh token
+      if (!userId) {
+        try {
+          const payload = await verifyRefreshToken(refreshToken);
+          userId = payload.userId;
+        } catch (refreshError) {
+          // Refresh token is also invalid - just clear cookies
+          res.clearCookie('accessToken', jwtConfig.accessTokenCookieOptions);
+          res.clearCookie('refreshToken', jwtConfig.cookieOptions);
+          res.status(200).json({
+            success: true,
+            message: 'Logged out successfully',
+          });
+          return;
+        }
+      }
+
+      // Call service to invalidate refresh token (userId is guaranteed to be string here)
+      if (userId) {
+        try {
+          await AuthService.logout(userId, refreshToken);
+        } catch (serviceError) {
+          // Even if service fails, clear cookies
+          // This ensures logout always succeeds from user perspective
+          console.warn('Logout service error (cookies still cleared):', serviceError);
+        }
+      }
+
+      // Clear cookies (always do this, even if service call failed)
       res.clearCookie('accessToken', jwtConfig.accessTokenCookieOptions);
       res.clearCookie('refreshToken', jwtConfig.cookieOptions);
 
-      res.status(200).json(result);
+      res.status(200).json({
+        success: true,
+        message: 'Logged out successfully',
+      });
     } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Logout failed',
-        errors: [error instanceof Error ? error.message : 'Unknown error'],
+      // On any error, still clear cookies and return success
+      res.clearCookie('accessToken', jwtConfig.accessTokenCookieOptions);
+      res.clearCookie('refreshToken', jwtConfig.cookieOptions);
+      res.status(200).json({
+        success: true,
+        message: 'Logged out successfully',
       });
     }
   }
@@ -407,6 +444,41 @@ export class AuthController {
       res.status(500).json({
         success: false,
         message: 'Contact verification failed',
+        errors: [error instanceof Error ? error.message : 'Unknown error'],
+      });
+    }
+  }
+
+  /**
+   * Resend verification email for unverified users
+   */
+  static async resendVerification(req: Request, res: Response): Promise<void> {
+    try {
+      // Validate request body
+      const validatedData = resendVerificationSchema.parse(req.body);
+
+      // Call service
+      const result = await AuthService.resendVerificationEmail(validatedData.email);
+
+      if (!result.success) {
+        res.status(400).json(result);
+        return;
+      }
+
+      res.status(200).json(result);
+    } catch (error) {
+      if (error instanceof Error && error.name === 'ZodError') {
+        res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: JSON.parse(error.message),
+        });
+        return;
+      }
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to send verification email',
         errors: [error instanceof Error ? error.message : 'Unknown error'],
       });
     }

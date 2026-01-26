@@ -29,9 +29,9 @@ router.get('/me', authenticate, AuthController.getCurrentUser);
 /**
  * @route   POST /api/auth/logout
  * @desc    Logout user
- * @access  Private
+ * @access  Public (works with refresh token even if access token is expired)
  */
-router.post('/logout', authenticate, AuthController.logout);
+router.post('/logout', apiRateLimiter, AuthController.logout);
 
 /**
  * @route   POST /api/auth/refresh
@@ -74,5 +74,12 @@ router.post('/verify-contact', authenticate, AuthController.verifyContact);
  * @access  Public
  */
 router.post('/setup-password', apiRateLimiter, AuthController.setupPassword);
+
+/**
+ * @route   POST /api/auth/resend-verification
+ * @desc    Resend verification email for unverified users
+ * @access  Public
+ */
+router.post('/resend-verification', apiRateLimiter, AuthController.resendVerification);
 
 export default router;

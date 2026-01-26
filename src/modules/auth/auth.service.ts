@@ -313,6 +313,21 @@ export class AuthService {
         };
       }
 
+      // Check if user is verified (only verified users can login)
+      if (!user.is_verified) {
+        // Return user info so frontend can show resend verification option
+        return {
+          success: false,
+          message: 'Account not verified',
+          errors: ['Your account has not been verified. Please verify your account before logging in.'],
+          data: {
+            user_id: user.id,
+            email: formattedContact,
+            requires_verification: true,
+          },
+        };
+      }
+
       // Get latest password
       const latestPassword = await UserPassword.findOne({
         where: { user_id: user.id },
@@ -923,6 +938,141 @@ export class AuthService {
       return {
         success: false,
         message: 'Contact verification failed',
+        errors: [error instanceof Error ? error.message : 'Unknown error'],
+      };
+    }
+  }
+
+  /**
+   * Resend verification email for unverified users
+   */
+  static async resendVerificationEmail(email: string): Promise<AuthResponse> {
+    try {
+      // Format email
+      const formattedEmail = formatContact(email, 'email');
+      
+      // Find user contact by email
+      const emailContactType = await ContactType.findOne({
+        where: {
+          [Op.or]: [
+            { contact_type: 'primary email' },
+            { contact_type: 'primary_email' },
+            { contact_type: 'email' },
+          ],
+        },
+      });
+
+      if (!emailContactType) {
+        return {
+          success: false,
+          message: 'Email contact type not found',
+          errors: ['Email contact type is not configured'],
+        };
+      }
+
+      // Find user contact
+      const userContact = await UserContact.findOne({
+        where: {
+          contact: formattedEmail,
+          contact_type_id: emailContactType.id,
+          is_primary: true,
+        },
+        include: [
+          {
+            model: User,
+            as: 'user',
+          },
+        ],
+      });
+
+      if (!userContact) {
+        // Don't reveal if user exists (security best practice)
+        return {
+          success: true,
+          message: 'If the email exists and account is unverified, a verification email will be sent',
+        };
+      }
+
+      // Type assertion for included user
+      const user = (userContact as UserContact & { user: User }).user;
+      
+      if (!user) {
+        // Don't reveal if user exists (security best practice)
+        return {
+          success: true,
+          message: 'If the email exists and account is unverified, a verification email will be sent',
+        };
+      }
+
+      // Only send if user is not verified
+      if (user.is_verified) {
+        return {
+          success: false,
+          message: 'Account already verified',
+          errors: ['Your account is already verified. You can log in normally.'],
+        };
+      }
+
+      // Check if user is active
+      if (!user.is_active) {
+        return {
+          success: false,
+          message: 'Account is inactive',
+          errors: ['Your account has been deactivated'],
+        };
+      }
+
+      // Generate new verification token
+      const setupToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(setupToken).digest('hex');
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24); // 24-hour expiry
+
+      // Invalidate any existing unused verification tokens for this user
+      await UserVerificationToken.update(
+        { is_active: false },
+        { 
+          where: { 
+            user_id: user.id, 
+            is_used: false,
+            is_active: true,
+          } 
+        }
+      );
+
+      // Create new verification token
+      await UserVerificationToken.create({
+        user_id: user.id,
+        token_hash: tokenHash,
+        expires_at: expiresAt,
+        is_used: false,
+        is_active: true,
+      });
+
+      // Send setup password email
+      try {
+        const userName = user.first_name && user.last_name 
+          ? `${user.first_name} ${user.last_name}` 
+          : user.username;
+        await emailService.sendSetupPasswordEmail(formattedEmail, setupToken, user.id, userName);
+      } catch (emailError) {
+        console.error('Failed to send verification email:', emailError);
+        return {
+          success: false,
+          message: 'Failed to send verification email',
+          errors: ['Unable to send verification email. Please try again later.'],
+        };
+      }
+
+      return {
+        success: true,
+        message: 'Verification email sent successfully. Please check your email to verify your account and set up your password.',
+      };
+    } catch (error) {
+      console.error('Resend verification email error:', error);
+      return {
+        success: false,
+        message: 'Failed to send verification email',
         errors: [error instanceof Error ? error.message : 'Unknown error'],
       };
     }

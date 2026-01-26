@@ -145,3 +145,10 @@ export const setupPasswordSchema = z.object({
   message: "Passwords don't match",
   path: ['confirm_password'],
 });
+
+/**
+ * Resend verification email validation schema
+ */
+export const resendVerificationSchema = z.object({
+  email: z.string().email('Invalid email address').min(1, 'Email is required'),
+});
