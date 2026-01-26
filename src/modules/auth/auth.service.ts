@@ -194,30 +194,35 @@ export class AuthService {
             errors: ['Please specify contact type or use a valid email/phone'],
           };
         }
-        // Map detected type to primary contact type
-        // 'email' -> 'primary email', 'mobile' -> 'primary mobile'
+        // Only accept email for login - mobile is not allowed
         if (detected === 'email') {
           detectedType = 'primary email';
-        } else if (detected === 'mobile' || detected === 'phone') {
-          detectedType = 'primary mobile';
         } else {
-          detectedType = detected;
+          return {
+            success: false,
+            message: 'Invalid login method',
+            errors: ['Only primary email can be used for login. Mobile numbers are not accepted.'],
+          };
         }
       } else {
-        // If contact type is provided, ensure it's mapped to primary
+        // If contact type is provided, ensure it's primary email only
         const lowerType = detectedType.toLowerCase();
-        if (lowerType === 'email') {
+        if (lowerType === 'email' || lowerType === 'primary email' || lowerType === 'primary_email') {
           detectedType = 'primary email';
-        } else if (lowerType === 'mobile' || lowerType === 'phone') {
-          detectedType = 'primary mobile';
+        } else {
+          return {
+            success: false,
+            message: 'Invalid login method',
+            errors: ['Only primary email can be used for login. Mobile numbers are not accepted.'],
+          };
         }
       }
 
-      // Format contact - use base type for formatting (email/mobile)
-      const baseType = detectedType.toLowerCase().includes('email') ? 'email' : 'mobile';
+      // Format contact - use email type for formatting
+      const baseType = 'email';
       const formattedContact = formatContact(contact, baseType);
 
-      // Find contact type - only accept primary email or primary mobile
+      // Find contact type - only accept primary email (mobile not allowed)
       // Try both 'primary email' and 'primary_email' variations
       const contactTypeRecord = await ContactType.findOne({
         where: {
@@ -237,20 +242,19 @@ export class AuthService {
         };
       }
 
-      // Check if the contact type is primary email or primary mobile
+      // Check if the contact type is primary email (only primary email allowed)
       const contactTypeName = contactTypeRecord.contact_type.toLowerCase();
       const isPrimaryEmail = contactTypeName === 'primary email' || contactTypeName === 'primary_email';
-      const isPrimaryMobile = contactTypeName === 'primary mobile' || contactTypeName === 'primary_mobile';
 
-      if (!isPrimaryEmail && !isPrimaryMobile) {
+      if (!isPrimaryEmail) {
         return {
           success: false,
           message: 'Invalid login method',
-          errors: ['You must use your primary email or primary mobile number to login'],
+          errors: ['You must use your primary email to login. Mobile numbers are not accepted.'],
         };
       }
 
-      // Find user contact - must be primary email or primary mobile
+      // Find user contact - must be primary email only
       const userContact = await UserContact.findOne({
         where: {
           contact: formattedContact,
@@ -285,7 +289,7 @@ export class AuthService {
         return {
           success: false,
           message: 'Invalid credentials',
-          errors: ['Please use your primary email or primary mobile number to login'],
+          errors: ['Please use your primary email to login'],
         };
       }
 
