@@ -10,9 +10,12 @@ export class DashboardController {
   /**
    * Get dashboard statistics
    */
-  static async getStatistics(_req: AuthRequest, res: Response): Promise<void> {
+  static async getStatistics(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const statistics = await DashboardService.getStatistics();
+      const statistics = await DashboardService.getStatistics(
+        req.user?.id,
+        req.user?.roles
+      );
       success(res, statistics, 'Statistics retrieved successfully');
     } catch (error) {
       res.status(500).json({

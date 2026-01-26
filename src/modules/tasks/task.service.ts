@@ -81,7 +81,9 @@ export class TaskService {
     page: number = 1,
     limit: number = 10,
     sortField?: string,
-    sortOrder: 'ASC' | 'DESC' = 'ASC'
+    sortOrder: 'ASC' | 'DESC' = 'ASC',
+    userId?: string,
+    userRoles?: Array<{ id: string; name: string }>
   ): Promise<{
     tasks: TaskResponseDto[];
     meta: ReturnType<typeof getPaginationMeta>;
@@ -197,8 +199,21 @@ export class TaskService {
       },
     ];
 
-    // Filter by assigned user if specified
-    if (filters.assigned_to) {
+    // Filter by assigned user if specified OR if user is not admin/PM
+    const adminRoles = ['Project Manager', 'Admin', 'Super Admin'];
+    const isAdmin = userRoles?.some(role => 
+      adminRoles.some(adminRole => role.name.toLowerCase() === adminRole.toLowerCase())
+    ) ?? false;
+
+    // If user is not admin/PM, only show tasks assigned to them
+    if (!isAdmin && userId) {
+      include[2].where = {
+        ...include[2].where,
+        user_id: userId,
+      };
+      include[2].required = true; // Make it required when filtering by assignee
+    } else if (filters.assigned_to) {
+      // If admin/PM and assigned_to filter is specified, use it
       include[2].where = {
         ...include[2].where,
         user_id: filters.assigned_to,
@@ -233,7 +248,11 @@ export class TaskService {
   /**
    * Get task by ID
    */
-  static async getTaskById(id: string): Promise<TaskResponseDto | null> {
+  static async getTaskById(
+    id: string,
+    userId?: string,
+    userRoles?: Array<{ id: string; name: string }>
+  ): Promise<TaskResponseDto | null> {
     const task = await Task.findOne({
       where: {
         id,
@@ -274,6 +293,27 @@ export class TaskService {
 
     if (!task) {
       return null;
+    }
+
+    // Check if user has permission to view this task
+    const adminRoles = ['Project Manager', 'Admin', 'Super Admin'];
+    const isAdmin = userRoles?.some((role: { id: string; name: string }) => 
+      adminRoles.some(adminRole => role.name.toLowerCase() === adminRole.toLowerCase())
+    ) ?? false;
+
+    // If user is not admin/PM, check if task is assigned to them
+    if (!isAdmin && userId) {
+      const taskWithIncludes = task as Task & {
+        assignments?: Array<TaskAssignment & { user?: User }>;
+      };
+      
+      const isAssigned = taskWithIncludes.assignments?.some(
+        (assignment: TaskAssignment) => assignment.user_id === userId && assignment.is_active && !assignment.deleted_at
+      );
+
+      if (!isAssigned) {
+        return null; // User doesn't have permission to view this task
+      }
     }
 
     return transformTaskToDto(task);

@@ -48,7 +48,9 @@ export class TaskController {
         query.page || 1,
         query.limit || 10,
         sortField,
-        sortOrder
+        sortOrder,
+        req.user?.id,
+        req.user?.roles
       );
 
       paginated(res, result.tasks, result.meta, 'Tasks retrieved successfully');
@@ -84,7 +86,9 @@ export class TaskController {
         query.page || 1,
         query.limit || 10,
         sortField,
-        sortOrder
+        sortOrder,
+        req.user?.id,
+        req.user?.roles
       );
 
       paginated(res, result.tasks, result.meta, 'Pending tasks retrieved successfully');
@@ -120,7 +124,9 @@ export class TaskController {
         query.page || 1,
         query.limit || 10,
         sortField,
-        sortOrder
+        sortOrder,
+        req.user?.id,
+        req.user?.roles
       );
 
       paginated(res, result.tasks, result.meta, 'Completed tasks retrieved successfully');
@@ -143,7 +149,11 @@ export class TaskController {
         return;
       }
 
-      const task = await TaskService.getTaskById(id);
+      const task = await TaskService.getTaskById(
+        id,
+        req.user?.id,
+        req.user?.roles
+      );
 
       if (!task) {
         error(res, 'Task not found', 404);
